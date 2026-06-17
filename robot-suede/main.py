@@ -18,6 +18,9 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional, Union
 
 import requests
+import serial
+
+SERIAL = serial.Serial("/dev/ttyAMA3", baudrate=115200, timeout=1)
 
 # --------------------------------------------------------------------------- #
 # Configuration
@@ -134,9 +137,23 @@ def navigate_to(target: Pose, current: Pose) -> None:
     raise NotImplementedError("navigation is not implemented on this stub")
 
 
+def send_command(cmd: str) -> None:
+    print(f"Sending: {cmd}")
+    SERIAL.write((cmd + "\n").encode("utf-8"))
+
+
 def execute_commands(commands: list[DrawingCommand]) -> None:
     """Issue line/spin/arc commands to the drive + pen, in order."""
-    raise NotImplementedError("command execution is not implemented on this stub")
+    for cmd in commands:
+        if isinstance(cmd, ArcCommand):
+            send_command(f"(t,{cmd.radius},{cmd.degrees})")
+
+        elif isinstance(cmd, LineCommand):
+            pen = 1 if cmd.penDown else 0
+            send_command(f"(m,{cmd.distance},{cmd.distance},2000,2000)")
+
+        elif isinstance(cmd, SpinCommand):
+            send_command(f"(t,0,{cmd.degrees})")
 
 
 # --------------------------------------------------------------------------- #
@@ -239,13 +256,18 @@ def run(config: Config) -> None:
 
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Doodlebot client")
-    parser.add_argument("--name", required=True, help="this bot's unique name")
-    parser.add_argument(
-        "--server", default="https://doodlebot.media.mit.edu", help="server base URL"
+    execute_commands(
+        [
+            ArcCommand(radius=100, degrees=90),
+        ]
     )
-    args = parser.parse_args()
+    # import argparse
 
-    run(Config(name=args.name, server_url=args.server))
+    # parser = argparse.ArgumentParser(description="Doodlebot client")
+    # parser.add_argument("--name", required=True, help="this bot's unique name")
+    # parser.add_argument(
+    #     "--server", default="https://doodlebot.media.mit.edu", help="server base URL"
+    # )
+    # args = parser.parse_args()
+
+    # run(Config(name=args.name, server_url=args.server))
