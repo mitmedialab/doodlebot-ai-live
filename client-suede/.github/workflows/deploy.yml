@@ -1,0 +1,61 @@
+name: deploy-pages
+#
+# Lives on the `release` branch. On every push it copies the static site files
+# at the repo root onto the `gh-pages` branch so GitHub Pages serves them.
+# Everything is copied verbatim EXCEPT the suede / git bookkeeping:
+#   .github/  .suede/  .gitrepo  README.md
+# A `.nojekyll` file is added (if absent) so Pages serves the files as-is
+# instead of running them through Jekyll.
+#
+# gh-pages is treated as a build-output branch: each deploy force-pushes a
+# single fresh commit, so its history is disposable.
+
+on:
+  push:
+    branches: [release]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the release branch
+        uses: actions/checkout@v4
+
+      - name: Stage the site (exclude tooling files)
+        run: |
+          set -euo pipefail
+          site="$RUNNER_TEMP/site"
+          mkdir -p "$site"
+          rsync -a \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='.suede/' \
+            --exclude='.gitrepo' \
+            --exclude='README.md' \
+            ./ "$site/"
+          # Tell GitHub Pages not to run Jekyll over these files.
+          [ -f "$site/.nojekyll" ] || touch "$site/.nojekyll"
+
+      - name: Publish to gh-pages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/site"
+          git init -q
+          git checkout -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Deploy ${GITHUB_SHA::7} to gh-pages"
+          git push -f \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            gh-pages

@@ -1,0 +1,1572 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sketch Gallery — Curator</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Mono:wght@300;400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+        background: #0e0e0c;
+        font-family: "DM Mono", monospace;
+        color: #f5f0e8;
+        overflow: hidden;
+      }
+
+      #app {
+        display: grid;
+        height: 100%;
+        grid-template-rows: 48px 1fr;
+        grid-template-columns: 1fr 320px;
+        grid-template-areas: "hdr hdr" "main side";
+      }
+
+      /* ── Header ── */
+      header {
+        grid-area: hdr;
+        display: flex;
+        align-items: center;
+        gap: 1.2rem;
+        padding: 0 1.2rem;
+        background: #080808;
+        border-bottom: 1px solid #1e1e1e;
+      }
+      header h1 {
+        font-family: "Playfair Display", serif;
+        font-size: 1.2rem;
+      }
+      header h1 em {
+        font-style: italic;
+        color: #d4a843;
+      }
+      .hdr-space {
+        flex: 1;
+      }
+      .token-row {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .token-row label {
+        font-size: 0.58rem;
+        color: #444;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+      .token-row input {
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid #333;
+        color: #f5f0e8;
+        font-family: "DM Mono", monospace;
+        font-size: 0.7rem;
+        padding: 0.15rem 0.3rem;
+        width: 140px;
+        outline: none;
+      }
+
+      /* ── Main area: two columns — queue | approved ── */
+      #main {
+        grid-area: main;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 32px 1fr;
+        overflow: hidden;
+        border-right: 1px solid #1a1a1a;
+      }
+
+      .col-header {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0 0.9rem;
+        background: #0a0a0a;
+        border-bottom: 1px solid #1e1e1e;
+        font-size: 0.6rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #555;
+      }
+      .col-header:first-child {
+        border-right: 1px solid #1e1e1e;
+      }
+      .col-badge {
+        background: #d4a843;
+        color: #0e0e0c;
+        font-size: 0.55rem;
+        padding: 0.1rem 0.4rem;
+        border-radius: 10px;
+        font-weight: bold;
+        min-width: 18px;
+        text-align: center;
+        display: none;
+      }
+      .col-badge.visible {
+        display: inline-block;
+      }
+
+      .col-scroll {
+        overflow-y: auto;
+        padding: 0.7rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 0.6rem;
+        align-content: start;
+      }
+      .col-scroll:first-of-type {
+        border-right: 1px solid #1a1a1a;
+      }
+      .col-scroll::-webkit-scrollbar {
+        width: 3px;
+      }
+      .col-scroll::-webkit-scrollbar-thumb {
+        background: #222;
+      }
+
+      /* ── Cards ── */
+      .card {
+        position: relative;
+        background: #111;
+        border: 2px solid #1e1e1e;
+        transition: border-color 0.15s;
+        cursor: pointer;
+      }
+      .card:hover {
+        border-color: #333;
+      }
+      .card.selected {
+        border-color: var(--card-color, #d4a843);
+      }
+
+      .card-tab {
+        height: 4px;
+        background: var(--card-color, #444);
+      }
+      .card img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 1;
+        object-fit: cover;
+      }
+
+      .card-actions {
+        display: flex;
+        gap: 1px;
+        background: #0a0a0a;
+      }
+      .card-actions button {
+        flex: 1;
+        padding: 0.3rem;
+        border: none;
+        cursor: pointer;
+        font-family: "DM Mono", monospace;
+        font-size: 0.58rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        transition: background 0.12s;
+      }
+      .btn-delete {
+        background: #2b0d0d;
+        color: #7d2d2d;
+      }
+      .btn-delete:hover {
+        background: #c0392b;
+        color: #fff;
+      }
+      .btn-show {
+        background: #1a1a2e;
+        color: #5a5a9e;
+      }
+      .btn-show:hover {
+        background: #5a5a9e;
+        color: #fff;
+      }
+      .btn-combine {
+        background: #0d2b18;
+        color: #2d7d46;
+      }
+      .btn-combine:hover {
+        background: #2d7d46;
+        color: #fff;
+      }
+
+      .combinable-badge {
+        position: absolute;
+        bottom: 6px;
+        right: 6px;
+        font-size: 0.5rem;
+        background: rgba(45, 125, 70, 0.7);
+        color: #fff;
+        padding: 0.1rem 0.3rem;
+        border-radius: 3px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .show-only-badge {
+        position: absolute;
+        bottom: 6px;
+        right: 6px;
+        font-size: 0.5rem;
+        background: rgba(90, 90, 158, 0.7);
+        color: #fff;
+        padding: 0.1rem 0.3rem;
+        border-radius: 3px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .sel-badge {
+        position: absolute;
+        top: 8px;
+        left: 6px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--card-color, #d4a843);
+        color: #fff;
+        font-size: 0.6rem;
+        font-weight: bold;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+      }
+      .card.selected .sel-badge {
+        display: flex;
+      }
+
+      .kind-badge {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        font-size: 0.55rem;
+        background: rgba(0, 0, 0, 0.55);
+        color: #aaa;
+        padding: 0.1rem 0.3rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      @keyframes newPulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(212, 168, 67, 0.8);
+        }
+        70% {
+          box-shadow: 0 0 0 10px rgba(212, 168, 67, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(212, 168, 67, 0);
+        }
+      }
+      .card.pulse {
+        animation: newPulse 0.7s ease-out;
+      }
+
+      .empty-col {
+        grid-column: 1/-1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 80px;
+        font-size: 0.65rem;
+        color: #2a2a2a;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      /* ── Sidebar ── */
+      #side {
+        grid-area: side;
+        display: flex;
+        flex-direction: column;
+        background: #0a0a0a;
+        overflow: hidden;
+      }
+
+      .panel {
+        padding: 0.9rem;
+        border-bottom: 1px solid #1a1a1a;
+      }
+      .panel h3 {
+        font-family: "Playfair Display", serif;
+        font-size: 0.9rem;
+        font-style: italic;
+        color: #aaa;
+        margin-bottom: 0.6rem;
+      }
+
+      /* selection list */
+      #selList {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+      .sel-item {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 0.62rem;
+        color: #666;
+        padding: 0.3rem 0.4rem;
+        border: 1px solid #1e1e1e;
+        background: #111;
+      }
+      .sel-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .sel-rm {
+        margin-left: auto;
+        background: none;
+        border: none;
+        color: #444;
+        cursor: pointer;
+        font-size: 0.8rem;
+      }
+      .sel-rm:hover {
+        color: #c0392b;
+      }
+      #selHint {
+        font-size: 0.6rem;
+        color: #333;
+        font-style: italic;
+      }
+
+      /* combine */
+      .dropdown-label {
+        display: block;
+        font-size: 0.52rem;
+        color: #555;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-bottom: 0.2rem;
+      }
+      .dropdown {
+        display: block;
+        width: 100%;
+        font-family: "DM Mono", monospace;
+        font-size: 0.62rem;
+        background: #111;
+        border: 1px solid #222;
+        color: #f5f0e8;
+        padding: 0.35rem 0.4rem;
+        outline: none;
+        margin-bottom: 0.5rem;
+        cursor: pointer;
+        -webkit-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%23555'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.5rem center;
+      }
+      .dropdown:focus {
+        border-color: #444;
+      }
+      .dropdown option {
+        background: #111;
+        color: #f5f0e8;
+      }
+
+      #modelChecks {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+        margin-bottom: 0.5rem;
+      }
+      .model-check {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-size: 0.58rem;
+        color: #999;
+        padding: 0.25rem 0.5rem;
+        border: 1px solid #222;
+        background: #111;
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.12s;
+      }
+      .model-check:hover {
+        border-color: #444;
+        color: #f5f0e8;
+      }
+      .model-check.checked {
+        border-color: #d4a843;
+        color: #d4a843;
+      }
+      .model-check input {
+        display: none;
+      }
+
+      .result-card {
+        margin-bottom: 0.6rem;
+      }
+      .result-card .result-label {
+        font-size: 0.55rem;
+        color: #888;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 0.2rem;
+      }
+      .result-card img {
+        width: 100%;
+        border: 1px solid #222;
+        display: block;
+        margin-bottom: 0.25rem;
+      }
+      .result-card a {
+        display: block;
+        font-size: 0.55rem;
+        color: #d4a843;
+        text-decoration: none;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1px solid #d4a843;
+        padding: 0.2rem 0.4rem;
+        text-align: center;
+        transition: all 0.15s;
+      }
+      .result-card a:hover {
+        background: #d4a843;
+        color: #0e0e0c;
+      }
+      .result-card .result-error {
+        font-size: 0.58rem;
+        color: #c0392b;
+        padding: 0.3rem;
+        border: 1px solid #7d2d2d;
+        background: #2b0d0d;
+      }
+
+      #combineArea textarea {
+        width: 100%;
+        font-family: "DM Mono", monospace;
+        font-size: 0.62rem;
+        background: #111;
+        border: 1px solid #222;
+        color: #f5f0e8;
+        padding: 0.4rem;
+        resize: vertical;
+        min-height: 50px;
+        outline: none;
+        margin-bottom: 0.5rem;
+      }
+      #combineArea textarea:focus {
+        border-color: #444;
+      }
+
+      .action-btn {
+        display: block;
+        width: 100%;
+        font-family: "DM Mono", monospace;
+        font-size: 0.62rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1.5px solid #333;
+        background: transparent;
+        color: #888;
+        padding: 0.4rem;
+        cursor: pointer;
+        transition: all 0.15s;
+        margin-bottom: 0.35rem;
+      }
+      .action-btn:hover {
+        background: #1e1e1e;
+        color: #f5f0e8;
+      }
+      .action-btn:disabled {
+        opacity: 0.25;
+        cursor: not-allowed;
+      }
+      .action-btn.gold {
+        border-color: #d4a843;
+        color: #d4a843;
+      }
+      .action-btn.gold:hover {
+        background: #d4a843;
+        color: #0e0e0c;
+      }
+
+      /* result */
+      #resultArea {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0.9rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+      }
+      #resultArea h3 {
+        font-family: "Playfair Display", serif;
+        font-size: 0.9rem;
+        font-style: italic;
+        color: #aaa;
+      }
+      #resultImg {
+        width: 100%;
+        display: none;
+        border: 1px solid #222;
+      }
+      #resultDl {
+        display: none;
+        font-size: 0.6rem;
+        color: #d4a843;
+        text-decoration: none;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1px solid #d4a843;
+        padding: 0.3rem 0.5rem;
+        text-align: center;
+        transition: all 0.15s;
+      }
+      #resultDl:hover {
+        background: #d4a843;
+        color: #0e0e0c;
+      }
+
+      /* status bar */
+      #statusBar {
+        padding: 0.35rem 0.9rem;
+        font-size: 0.58rem;
+        color: #333;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        border-top: 1px solid #151515;
+        background: #060606;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        flex-shrink: 0;
+      }
+      #liveDot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: #2ecc71;
+        animation: blink 2s infinite;
+      }
+      #liveDot.off {
+        background: #c0392b;
+        animation: none;
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.3;
+        }
+      }
+
+      .spinner {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border: 2px solid #333;
+        border-top-color: #d4a843;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        vertical-align: middle;
+        margin-right: 0.3rem;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* ── Vectorize button ── */
+      .vectorize-btn {
+        display: block;
+        width: 100%;
+        margin-top: 0.25rem;
+        font-family: "DM Mono", monospace;
+        font-size: 0.55rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1px solid #5a9e5a;
+        background: transparent;
+        color: #5a9e5a;
+        padding: 0.2rem 0.4rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .vectorize-btn:hover {
+        background: #5a9e5a;
+        color: #0e0e0c;
+      }
+      .vectorize-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      /* ── Vectorize modal overlay ── */
+      .vec-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(0, 0, 0, 0.88);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .vec-modal {
+        position: relative;
+        background: #0e0e0c;
+        border: 1px solid #2a2a2a;
+        padding: 1.5rem;
+        max-width: 90vw;
+        max-height: 90vh;
+        overflow: auto;
+      }
+      .vec-close {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.7rem;
+        background: none;
+        border: none;
+        color: #666;
+        font-size: 1.4rem;
+        cursor: pointer;
+        line-height: 1;
+      }
+      .vec-close:hover {
+        color: #f5f0e8;
+      }
+      #vecSvgContainer {
+        margin-bottom: 1rem;
+      }
+      #vecSvgContainer svg {
+        width: 100%;
+        height: auto;
+      }
+      .vec-downloads {
+        display: flex;
+        gap: 0.5rem;
+      }
+      .vec-downloads a {
+        flex: 1;
+        font-family: "DM Mono", monospace;
+        font-size: 0.55rem;
+        color: #5a9e5a;
+        text-decoration: none;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1px solid #5a9e5a;
+        padding: 0.3rem 0.5rem;
+        text-align: center;
+        transition: all 0.15s;
+      }
+      .vec-downloads a:hover {
+        background: #5a9e5a;
+        color: #0e0e0c;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>Sketch <em>Gallery</em></h1>
+        <div class="hdr-space"></div>
+        <div class="token-row">
+          <label>Token</label>
+          <input
+            type="password"
+            id="adminToken"
+            placeholder="admin token…"
+            autocomplete="off"
+          />
+        </div>
+      </header>
+
+      <div id="main">
+        <!-- Queue column header -->
+        <div class="col-header">
+          Pending review
+          <span class="col-badge" id="pendingBadge">0</span>
+        </div>
+        <!-- Approved column header -->
+        <div class="col-header">
+          Approved
+          <span class="col-badge" id="approvedBadge" style="background: #2d7d46"
+            >0</span
+          >
+        </div>
+
+        <!-- Queue scroll -->
+        <div class="col-scroll" id="queueGrid">
+          <div class="empty-col">no pending submissions</div>
+        </div>
+
+        <!-- Approved scroll -->
+        <div class="col-scroll" id="approvedGrid">
+          <div class="empty-col">no approved sketches</div>
+        </div>
+      </div>
+
+      <div id="side">
+        <!-- Selection -->
+        <div class="panel">
+          <h3>Selection</h3>
+          <div id="selList"></div>
+          <p id="selHint">Click approved sketches to select (2–4)</p>
+        </div>
+
+        <!-- Combine -->
+        <div class="panel" id="combineArea">
+          <h3>Combine</h3>
+          <label class="dropdown-label">Models</label>
+          <!-- <select id="modelSelect" class="dropdown"></select> -->
+          <div id="modelChecks"></div>
+          <label class="dropdown-label">Prompt preset</label>
+          <select
+            id="presetSelect"
+            class="dropdown"
+            onchange="onPresetChange()"
+          ></select>
+          <textarea
+            id="combinePrompt"
+            placeholder="Extra instruction (added to preset)…"
+          ></textarea>
+          <div id="savePresetRow" style="display: none; margin-bottom: 0.5rem">
+            <input
+              type="text"
+              id="presetName"
+              class="dropdown"
+              placeholder="Preset name…"
+              style="margin-bottom: 0.3rem"
+            />
+            <button class="action-btn" onclick="saveCustomPreset()">
+              Save as preset
+            </button>
+          </div>
+          <button
+            class="action-btn gold"
+            id="combineBtn"
+            onclick="combineSelected()"
+            disabled
+          >
+            Combine (<span id="selCount">0</span>)
+          </button>
+          <button class="action-btn" onclick="clearSelection()">
+            Clear selection
+          </button>
+          <hr
+            style="
+              border: none;
+              border-top: 1px solid #1a1a1a;
+              margin: 0.5rem 0;
+            "
+          />
+          <label class="dropdown-label">Auto combine</label>
+          <div
+            style="
+              display: flex;
+              gap: 0.3rem;
+              align-items: center;
+              margin-bottom: 0.4rem;
+            "
+          >
+            <label class="dropdown-label" style="margin: 0; white-space: nowrap"
+              >Sketches:</label
+            >
+            <select
+              id="autoCount"
+              class="dropdown"
+              style="width: 60px; margin: 0"
+            >
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4" selected>4</option>
+            </select>
+          </div>
+          <button
+            class="action-btn gold"
+            id="autoCombineBtn"
+            onclick="autoCombine()"
+          >
+            Auto Combine
+          </button>
+          <button class="action-btn" onclick="resetCoverage()">
+            Reset coverage
+          </button>
+          <div
+            id="coverageInfo"
+            style="font-size: 0.55rem; color: #555; margin-top: 0.3rem"
+          ></div>
+        </div>
+
+        <!-- Result -->
+        <div id="resultArea">
+          <h3>Results</h3>
+          <!-- old single-result:
+      <img id="resultImg" alt="Generated">
+      <a id="resultDl" download="combined.png">↓ Download</a>
+      -->
+          <div id="resultsList"></div>
+        </div>
+
+        <div id="statusBar">
+          <span id="liveDot" class="off"></span>
+          <span id="statusText">connecting…</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vectorize modal -->
+    <div
+      id="vecOverlay"
+      class="vec-overlay"
+      style="display: none"
+      onclick="closeVecModal(event)"
+    >
+      <div class="vec-modal" onclick="event.stopPropagation()">
+        <button class="vec-close" onclick="closeVecModal()">&times;</button>
+        <div id="vecSvgContainer"></div>
+        <div id="vecDownloads" class="vec-downloads"></div>
+      </div>
+    </div>
+
+    <script>
+      // ── Token ─────────────────────────────────────────────────────────────────────
+      const urlToken = new URLSearchParams(window.location.search).get("token");
+      if (urlToken) document.getElementById("adminToken").value = urlToken;
+      const tok = () => document.getElementById("adminToken").value.trim();
+
+      const MODE = "PROD";
+      const host =
+        MODE === "DEV"
+          ? "http://localhost:5000"
+          : "https://ai-live-backend-b3808e79d8f1.herokuapp.com";
+
+      // ── State ─────────────────────────────────────────────────────────────────────
+      let pending = []; // [{filename, dataUrl, phoneId, phoneColor, kind}]
+      let approved = [];
+      let selected = []; // filenames of approved sketches to combine
+
+      // ── Load ──────────────────────────────────────────────────────────────────────
+      async function load() {
+        const [pendRes, appRes, modelsRes, presetsRes] = await Promise.all([
+          fetch(`${host}/api/pending`, { headers: { "X-Admin-Token": tok() } }),
+          fetch(`${host}/api/sketches`, {
+            headers: { "X-Admin-Token": tok() },
+          }),
+          fetch(`${host}/api/models`),
+          fetch(`${host}/api/presets`),
+        ]);
+        pending = pendRes.ok ? await pendRes.json() : [];
+        approved = appRes.ok ? await appRes.json() : [];
+        renderQueue();
+        renderApproved();
+
+        // populate model checkboxes
+        if (modelsRes.ok) {
+          const models = await modelsRes.json();
+          const container = document.getElementById("modelChecks");
+          container.innerHTML = "";
+          if (models.length === 0) {
+            container.innerHTML =
+              '<span style="font-size:0.55rem;color:#444">No API keys configured</span>';
+          }
+          models.forEach((m, i) => {
+            const label = document.createElement("label");
+            label.className = "model-check" + (i === 0 ? " checked" : "");
+            const cb = document.createElement("input");
+            cb.type = "checkbox";
+            cb.value = m.id;
+            if (i === 0) cb.checked = true;
+            cb.onchange = () => label.classList.toggle("checked", cb.checked);
+            label.appendChild(cb);
+            label.appendChild(document.createTextNode(m.label));
+            container.appendChild(label);
+          });
+        }
+
+        // populate preset dropdown
+        if (presetsRes.ok) {
+          _presets = await presetsRes.json();
+          const sel = document.getElementById("presetSelect");
+          sel.innerHTML = "";
+          _presets.forEach((p) => {
+            const opt = document.createElement("option");
+            opt.value = p.name;
+            opt.textContent = p.name;
+            sel.appendChild(opt);
+          });
+          onPresetChange();
+        }
+      }
+
+      let _presets = []; // cached preset list
+
+      function onPresetChange() {
+        const preset = document.getElementById("presetSelect").value;
+        const ta = document.getElementById("combinePrompt");
+        const saveRow = document.getElementById("savePresetRow");
+        if (preset === "Custom") {
+          ta.value = "";
+          ta.placeholder = "Type your full prompt here…";
+          saveRow.style.display = "block";
+        } else {
+          const found = _presets.find((p) => p.name === preset);
+          ta.value = found ? found.prompt : "";
+          ta.placeholder = "Edit prompt or add extra instruction…";
+          saveRow.style.display = "none";
+        }
+      }
+
+      async function saveCustomPreset() {
+        const name = document.getElementById("presetName").value.trim();
+        const prompt = document.getElementById("combinePrompt").value.trim();
+        if (!name) {
+          alert("Enter a preset name");
+          return;
+        }
+        if (!prompt) {
+          alert("Enter a prompt first");
+          return;
+        }
+        const res = await fetch(`${host}/api/presets`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Admin-Token": tok(),
+          },
+          body: JSON.stringify({ name, prompt }),
+        });
+        if (res.ok) {
+          document.getElementById("presetName").value = "";
+          await refreshPresets();
+          document.getElementById("presetSelect").value = name;
+          onPresetChange();
+        } else {
+          alert("Failed to save preset");
+        }
+      }
+
+      async function refreshPresets() {
+        const res = await fetch(`${host}/api/presets`);
+        if (!res.ok) return;
+        _presets = await res.json();
+        const sel = document.getElementById("presetSelect");
+        const cur = sel.value;
+        sel.innerHTML = "";
+        _presets.forEach((p) => {
+          const opt = document.createElement("option");
+          opt.value = p.name;
+          opt.textContent = p.name;
+          sel.appendChild(opt);
+        });
+        // restore previous selection if it still exists
+        if ([...sel.options].some((o) => o.value === cur)) sel.value = cur;
+      }
+
+      // ── Queue render ──────────────────────────────────────────────────────────────
+      function renderQueue() {
+        const grid = document.getElementById("queueGrid");
+        const badge = document.getElementById("pendingBadge");
+        badge.textContent = pending.length;
+        badge.classList.toggle("visible", pending.length > 0);
+
+        if (pending.length === 0) {
+          grid.innerHTML =
+            '<div class="empty-col">no pending submissions</div>';
+          return;
+        }
+        grid.innerHTML = "";
+        pending.forEach((sk) => grid.appendChild(makePendingCard(sk)));
+      }
+
+      function makePendingCard(sk) {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.dataset.filename = sk.filename;
+        card.style.setProperty("--card-color", sk.phoneColor);
+
+        const tab = document.createElement("div");
+        tab.className = "card-tab";
+        const img = document.createElement("img");
+        img.src = sk.dataUrl;
+        img.alt = sk.phoneId;
+        const kb = document.createElement("div");
+        kb.className = "kind-badge";
+        kb.textContent = sk.kind === "text" ? "Aa" : "✏";
+
+        const actions = document.createElement("div");
+        actions.className = "card-actions";
+        const btnD = document.createElement("button");
+        btnD.className = "btn-delete";
+        btnD.textContent = "Delete";
+        const btnS = document.createElement("button");
+        btnS.className = "btn-show";
+        btnS.textContent = "Show";
+        const btnC = document.createElement("button");
+        btnC.className = "btn-combine";
+        btnC.textContent = "Combine";
+
+        btnD.onclick = (e) => {
+          e.stopPropagation();
+          doReject(sk.filename);
+        };
+        btnS.onclick = (e) => {
+          e.stopPropagation();
+          doApprove(sk.filename, false);
+        };
+        btnC.onclick = (e) => {
+          e.stopPropagation();
+          doApprove(sk.filename, true);
+        };
+
+        actions.appendChild(btnD);
+        actions.appendChild(btnS);
+        actions.appendChild(btnC);
+        card.appendChild(tab);
+        card.appendChild(img);
+        card.appendChild(kb);
+        card.appendChild(actions);
+        return card;
+      }
+
+      // ── Approved render ───────────────────────────────────────────────────────────
+      function renderApproved() {
+        const grid = document.getElementById("approvedGrid");
+        const badge = document.getElementById("approvedBadge");
+        badge.textContent = approved.length;
+        badge.classList.toggle("visible", approved.length > 0);
+
+        if (approved.length === 0) {
+          grid.innerHTML = '<div class="empty-col">no approved sketches</div>';
+          return;
+        }
+        grid.innerHTML = "";
+        approved.forEach((sk) => grid.appendChild(makeApprovedCard(sk)));
+      }
+
+      function makeApprovedCard(sk) {
+        const card = document.createElement("div");
+        card.className =
+          "card" + (selected.includes(sk.filename) ? " selected" : "");
+        card.dataset.filename = sk.filename;
+        card.style.setProperty("--card-color", sk.phoneColor);
+
+        const tab = document.createElement("div");
+        tab.className = "card-tab";
+        const img = document.createElement("img");
+        img.src = sk.dataUrl;
+        img.alt = sk.phoneId;
+        const kb = document.createElement("div");
+        kb.className = "kind-badge";
+        kb.textContent = sk.kind === "text" ? "Aa" : "✏";
+        const badge = document.createElement("div");
+        badge.className = "sel-badge";
+        const idx = selected.indexOf(sk.filename);
+        if (idx > -1) badge.textContent = idx + 1;
+
+        // combinable / show-only indicator
+        const stateBadge = document.createElement("div");
+        if (sk.combinable) {
+          stateBadge.className = "combinable-badge";
+          stateBadge.textContent = "combine";
+        } else {
+          stateBadge.className = "show-only-badge";
+          stateBadge.textContent = "show";
+        }
+
+        card.appendChild(tab);
+        card.appendChild(img);
+        card.appendChild(kb);
+        card.appendChild(badge);
+        card.appendChild(stateBadge);
+        card.onclick = () => toggleSelect(sk.filename);
+        return card;
+      }
+
+      // ── Moderation actions ────────────────────────────────────────────────────────
+      async function doApprove(filename, combinable = false) {
+        const res = await fetch(`${host}/api/pending/${filename}/approve`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Admin-Token": tok(),
+          },
+          body: JSON.stringify({ combinable }),
+        });
+        if (!res.ok) {
+          alert("Approval failed — check token");
+          return;
+        }
+        pending = pending.filter((s) => s.filename !== filename);
+        renderQueue();
+        // approved list will update via SSE
+      }
+
+      async function doReject(filename) {
+        await fetch(`${host}/api/pending/${filename}/reject`, {
+          method: "POST",
+          headers: { "X-Admin-Token": tok() },
+        });
+        pending = pending.filter((s) => s.filename !== filename);
+        renderQueue();
+      }
+
+      // ── Selection ─────────────────────────────────────────────────────────────────
+      function toggleSelect(filename) {
+        const idx = selected.indexOf(filename);
+        if (idx > -1) selected.splice(idx, 1);
+        else if (selected.length < 4) selected.push(filename);
+        renderApproved();
+        renderSelList();
+        pushSelection();
+      }
+
+      function clearSelection() {
+        selected = [];
+        renderApproved();
+        renderSelList();
+        pushSelection();
+      }
+
+      function renderSelList() {
+        const list = document.getElementById("selList");
+        const cnt = document.getElementById("selCount");
+        cnt.textContent = selected.length;
+        document.getElementById("combineBtn").disabled = selected.length < 2;
+        document.getElementById("selHint").style.display = selected.length
+          ? "none"
+          : "block";
+
+        list.innerHTML = "";
+        selected.forEach((fn) => {
+          const sk = approved.find((s) => s.filename === fn);
+          const div = document.createElement("div");
+          div.className = "sel-item";
+          div.innerHTML = `<span class="sel-dot" style="background:${sk?.phoneColor || "#888"}"></span>
+                     <span>${sk?.phoneId || fn}</span>
+                     <button class="sel-rm" onclick="toggleSelect('${fn}')">✕</button>`;
+          list.appendChild(div);
+        });
+      }
+
+      async function pushSelection() {
+        if (!tok()) return;
+        const payload = selected.map((fn) => {
+          const sk = approved.find((s) => s.filename === fn);
+          return {
+            filename: fn,
+            phoneId: sk?.phoneId,
+            phoneColor: sk?.phoneColor,
+          };
+        });
+        await fetch(`${host}/api/select`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Admin-Token": tok(),
+          },
+          body: JSON.stringify({ selected: payload }),
+        });
+      }
+
+      // ── Combine ───────────────────────────────────────────────────────────────────
+      function getSelectedModels() {
+        return [...document.querySelectorAll("#modelChecks input:checked")].map(
+          (cb) => cb.value,
+        );
+      }
+
+      async function combineSelected() {
+        if (!tok()) {
+          alert("Enter admin token");
+          return;
+        }
+        const models = getSelectedModels();
+        if (models.length === 0) {
+          alert("Select at least one model");
+          return;
+        }
+
+        const btn = document.getElementById("combineBtn");
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>Generating…';
+        document.getElementById("resultsList").innerHTML = "";
+
+        try {
+          const res = await fetch(`${host}/api/combine`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Admin-Token": tok(),
+            },
+            body: JSON.stringify({
+              filenames: selected,
+              models: models,
+              preset: document.getElementById("presetSelect").value,
+              prompt: document.getElementById("combinePrompt").value.trim(),
+            }),
+          });
+          if (!res.ok) {
+            const text = await res.text();
+            try {
+              alert("Error: " + JSON.parse(text).error);
+            } catch (_) {
+              alert("Server error: " + text.slice(0, 200));
+            }
+            return;
+          }
+          const data = await res.json();
+          if (data.success && data.results) {
+            const list = document.getElementById("resultsList");
+            list.innerHTML = "";
+            data.results.forEach((r) => {
+              const card = document.createElement("div");
+              card.className = "result-card";
+              const label = document.createElement("div");
+              label.className = "result-label";
+              label.textContent = r.model_label;
+              card.appendChild(label);
+              if (r.error) {
+                const err = document.createElement("div");
+                err.className = "result-error";
+                err.textContent = r.error;
+                card.appendChild(err);
+              } else {
+                const img = document.createElement("img");
+                img.src = r.image;
+                img.alt = r.model_label;
+                const dl = document.createElement("a");
+                dl.href = r.image;
+                dl.download = r.saved_as || "combined.png";
+                dl.textContent = "↓ Download";
+                card.appendChild(img);
+                card.appendChild(dl);
+                const vecBtn = document.createElement("button");
+                vecBtn.className = "vectorize-btn";
+                vecBtn.textContent = "Vectorize";
+                vecBtn.onclick = () =>
+                  vectorizeImage(vecBtn, r.image, r.saved_as || "combined.png");
+                card.appendChild(vecBtn);
+              }
+              list.appendChild(card);
+            });
+            refreshPresets();
+          } else {
+            alert("Error: " + (data.error || "unknown"));
+          }
+        } catch (e) {
+          alert("Network error: " + e);
+        } finally {
+          btn.innerHTML =
+            'Combine (<span id="selCount">' + selected.length + "</span>)";
+          btn.disabled = selected.length < 2;
+        }
+      }
+
+      // ── Auto-combine ─────────────────────────────────────────────────────────────
+      async function autoCombine() {
+        if (!tok()) {
+          alert("Enter admin token");
+          return;
+        }
+        const models = getSelectedModels();
+        if (models.length === 0) {
+          alert("Select at least one model");
+          return;
+        }
+
+        const btn = document.getElementById("autoCombineBtn");
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>Auto-generating…';
+        document.getElementById("resultsList").innerHTML = "";
+
+        try {
+          const res = await fetch(`${host}/api/auto-combine`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Admin-Token": tok(),
+            },
+            body: JSON.stringify({
+              models: models,
+              preset: document.getElementById("presetSelect").value,
+              prompt: document.getElementById("combinePrompt").value.trim(),
+              count: parseInt(document.getElementById("autoCount").value),
+            }),
+          });
+          if (!res.ok) {
+            const text = await res.text();
+            try {
+              alert("Error: " + JSON.parse(text).error);
+            } catch (_) {
+              alert("Server error: " + text.slice(0, 200));
+            }
+            return;
+          }
+          const data = await res.json();
+          if (data.success && data.results) {
+            const list = document.getElementById("resultsList");
+            list.innerHTML = "";
+
+            // show which sketches were auto-selected
+            if (data.selected) {
+              const info = document.createElement("div");
+              info.style.cssText =
+                "font-size:0.55rem;color:#888;margin-bottom:0.5rem;padding:0.3rem;border:1px solid #1a1a1a";
+              info.innerHTML =
+                "<strong>Auto-selected:</strong> " +
+                data.selected
+                  .map(
+                    (s) =>
+                      `<span style="color:${s.phoneColor}">${s.phoneId}</span>`,
+                  )
+                  .join(", ");
+              list.appendChild(info);
+            }
+
+            data.results.forEach((r) => {
+              const card = document.createElement("div");
+              card.className = "result-card";
+              const label = document.createElement("div");
+              label.className = "result-label";
+              label.textContent = r.model_label;
+              card.appendChild(label);
+              if (r.error) {
+                const err = document.createElement("div");
+                err.className = "result-error";
+                err.textContent = r.error;
+                card.appendChild(err);
+              } else {
+                const img = document.createElement("img");
+                img.src = r.image;
+                img.alt = r.model_label;
+                const dl = document.createElement("a");
+                dl.href = r.image;
+                dl.download = r.saved_as || "combined.png";
+                dl.textContent = "↓ Download";
+                card.appendChild(img);
+                card.appendChild(dl);
+                const vecBtn = document.createElement("button");
+                vecBtn.className = "vectorize-btn";
+                vecBtn.textContent = "Vectorize";
+                vecBtn.onclick = () =>
+                  vectorizeImage(vecBtn, r.image, r.saved_as || "combined.png");
+                card.appendChild(vecBtn);
+              }
+              list.appendChild(card);
+            });
+          } else {
+            alert("Error: " + (data.error || "unknown"));
+          }
+          loadCoverage();
+        } catch (e) {
+          alert("Network error: " + e);
+        } finally {
+          btn.innerHTML = "Auto Combine";
+          btn.disabled = false;
+        }
+      }
+
+      // ── Vectorize ────────────────────────────────────────────────────────────────
+      async function vectorizeImage(btn, imgSrc, filename) {
+        // If already vectorized, reopen modal from cache
+        if (btn._vecData) {
+          showVecModal(btn._vecData, btn._vecFilename);
+          return;
+        }
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>Vectorizing…';
+        try {
+          // Convert base64 data URL to Blob
+          const resp = await fetch(imgSrc);
+          const blob = await resp.blob();
+          const form = new FormData();
+          form.append("image_file", blob, filename);
+
+          const res = await fetch(
+            "https://doodlebot.media.mit.edu/vectorize/",
+            {
+              method: "POST",
+              body: form,
+            },
+          );
+          if (!res.ok) {
+            const text = await res.text();
+            alert("Vectorize error: " + text.slice(0, 200));
+            btn.disabled = false;
+            btn.textContent = "Vectorize";
+            return;
+          }
+          const data = await res.json();
+          btn._vecData = data;
+          btn._vecFilename = filename;
+          showVecModal(data, filename);
+          btn.disabled = false;
+          btn.textContent = "Vectorized";
+          btn.style.borderColor = "#2d7d46";
+          btn.style.color = "#2d7d46";
+        } catch (e) {
+          alert("Vectorize error: " + e);
+          btn.disabled = false;
+          btn.textContent = "Vectorize";
+        }
+      }
+
+      function showVecModal(data, filename) {
+        const container = document.getElementById("vecSvgContainer");
+        const downloads = document.getElementById("vecDownloads");
+        container.innerHTML = data.svg;
+        downloads.innerHTML = "";
+
+        const base = filename.replace(/\.png$/i, "");
+
+        // SVG download
+        const svgBlob = new Blob([data.svg], { type: "image/svg+xml" });
+        const svgLink = document.createElement("a");
+        svgLink.href = URL.createObjectURL(svgBlob);
+        svgLink.download = base + "_vector.svg";
+        svgLink.textContent = "SVG";
+        downloads.appendChild(svgLink);
+
+        // Low geometry JSON
+        const lowBlob = new Blob([JSON.stringify(data.low_geometry, null, 2)], {
+          type: "application/json",
+        });
+        const lowLink = document.createElement("a");
+        lowLink.href = URL.createObjectURL(lowBlob);
+        lowLink.download = base + "_low_geo.json";
+        lowLink.textContent = "Low Geo";
+        downloads.appendChild(lowLink);
+
+        // High geometry JSON
+        const highBlob = new Blob(
+          [JSON.stringify(data.high_geometry, null, 2)],
+          { type: "application/json" },
+        );
+        const highLink = document.createElement("a");
+        highLink.href = URL.createObjectURL(highBlob);
+        highLink.download = base + "_high_geo.json";
+        highLink.textContent = "High Geo";
+        downloads.appendChild(highLink);
+
+        document.getElementById("vecOverlay").style.display = "flex";
+      }
+
+      function closeVecModal(e) {
+        if (e && e.target !== document.getElementById("vecOverlay")) return;
+        document.getElementById("vecOverlay").style.display = "none";
+      }
+
+      async function loadCoverage() {
+        try {
+          const res = await fetch(`${host}/api/coverage`);
+          if (!res.ok) return;
+          const cov = await res.json();
+          const el = document.getElementById("coverageInfo");
+          const entries = Object.entries(cov);
+          if (entries.length === 0) {
+            el.textContent = "No coverage data yet";
+            return;
+          }
+          const total = entries.length;
+          const counts = { nothing: 0, pending: 0, drawn: 0 };
+          entries.forEach(([, s]) => (counts[s] = (counts[s] || 0) + 1));
+          el.innerHTML =
+            `<div style="margin-bottom:0.2rem"><strong>${total} phones</strong> · ` +
+            `<span style="color:#555">${counts.nothing} waiting</span> · ` +
+            `<span style="color:#d4a843">${counts.pending} pending</span> · ` +
+            `<span style="color:#2d7d46">${counts.drawn} done</span></div>`;
+        } catch (_) {}
+      }
+
+      async function resetCoverage() {
+        if (!tok()) {
+          alert("Enter admin token");
+          return;
+        }
+        await fetch(`${host}/api/coverage/reset`, {
+          method: "POST",
+          headers: { "X-Admin-Token": tok() },
+        });
+        loadCoverage();
+      }
+
+      // ── SSE ───────────────────────────────────────────────────────────────────────
+      function setStatus(msg) {
+        document.getElementById("statusText").textContent = msg;
+      }
+
+      const es = new EventSource(`${host}/stream`);
+      const dot = document.getElementById("liveDot");
+
+      es.addEventListener("connected", () => {
+        dot.className = "";
+        setStatus("live");
+      });
+      es.onerror = () => {
+        dot.className = "off";
+        setStatus("disconnected");
+      };
+
+      es.addEventListener("new_pending", (e) => {
+        const sk = JSON.parse(e.data);
+        if (!pending.find((s) => s.filename === sk.filename)) {
+          pending.unshift(sk);
+          renderQueue();
+          // pulse the new card
+          const card = document.querySelector(
+            `#queueGrid .card[data-filename="${sk.filename}"]`,
+          );
+          if (card) {
+            card.classList.add("pulse");
+            setTimeout(() => card.classList.remove("pulse"), 800);
+          }
+        }
+        setStatus(`new from ${sk.phoneId}`);
+        setTimeout(() => setStatus("live"), 3000);
+      });
+
+      es.addEventListener("approved_sketch", (e) => {
+        const sk = JSON.parse(e.data);
+        if (!approved.find((s) => s.filename === sk.filename)) {
+          approved.unshift(sk);
+          renderApproved();
+        }
+      });
+
+      es.addEventListener("deleted_sketch", (e) => {
+        const { filename } = JSON.parse(e.data);
+        approved = approved.filter((s) => s.filename !== filename);
+        selected = selected.filter((f) => f !== filename);
+        renderApproved();
+        renderSelList();
+      });
+
+      es.addEventListener("combining", () => setStatus("combining…"));
+      es.addEventListener("combined", (e) => {
+        setStatus("combined ✓");
+        setTimeout(() => setStatus("live"), 4000);
+      });
+
+      // ── Boot ──────────────────────────────────────────────────────────────────────
+      setTimeout(() => {
+        load();
+        loadCoverage();
+      }, 100);
+    </script>
+  </body>
+</html>
