@@ -16,12 +16,17 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from typing import Literal, Optional, Union
+import socket
 
-import requests
-import serial
+HOST = "127.0.0.1"
+PORT = 5000
 
-SERIAL1 = serial.Serial("/dev/ttyAMA2", baudrate=115200, timeout=1)
-SERIAL2 = serial.Serial("/dev/ttyAMA2", baudrate=115200, timeout=1)
+
+def send(msg):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((HOST, PORT))
+        s.sendall((msg + "\n").encode())
+
 
 # --------------------------------------------------------------------------- #
 # Configuration
@@ -140,8 +145,7 @@ def navigate_to(target: Pose, current: Pose) -> None:
 
 def send_command(cmd: str) -> None:
     print(f"Sending: {cmd}")
-    SERIAL1.write((cmd + "\n").encode("utf-8"))
-    SERIAL2.write((cmd + "\n").encode("utf-8"))
+    send((cmd + "\n").encode("utf-8"))
 
 
 def execute_commands(commands: list[DrawingCommand]) -> None:
