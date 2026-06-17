@@ -20,7 +20,8 @@ from typing import Literal, Optional, Union
 import requests
 import serial
 
-SERIAL = serial.Serial("/dev/ttyAMA2", baudrate=115200, timeout=1)
+SERIAL1 = serial.Serial("/dev/ttyAMA2", baudrate=115200, timeout=1)
+SERIAL2 = serial.Serial("/dev/ttyAMA2", baudrate=115200, timeout=1)
 
 # --------------------------------------------------------------------------- #
 # Configuration
@@ -139,7 +140,8 @@ def navigate_to(target: Pose, current: Pose) -> None:
 
 def send_command(cmd: str) -> None:
     print(f"Sending: {cmd}")
-    SERIAL.write((cmd + "\n").encode("utf-8"))
+    SERIAL1.write((cmd + "\n").encode("utf-8"))
+    SERIAL2.write((cmd + "\n").encode("utf-8"))
 
 
 def execute_commands(commands: list[DrawingCommand]) -> None:
