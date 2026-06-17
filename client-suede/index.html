@@ -553,6 +553,8 @@
     </div>
 
     <script>
+      /** @typedef {{ id: string, color: string }} Identity */
+
       const MODE = "PROD";
       const host =
         MODE === "DEV"
@@ -572,6 +574,7 @@
         "#00bcd4",
         "#ff5722",
       ];
+      /** @returns {Identity} */
       function getIdentity() {
         let id = localStorage.getItem("sketchPhoneId");
         let color = localStorage.getItem("sketchPhoneColor");
@@ -589,6 +592,7 @@
       document.getElementById("phoneLabel").textContent = me.id;
 
       // ── Screen navigation ─────────────────────────────────────────────────────────
+      /** @param {string} id */
       function goTo(id) {
         document
           .querySelectorAll(".screen")
@@ -597,13 +601,19 @@
       }
 
       // ── Canvas ────────────────────────────────────────────────────────────────────
-      const canvas = document.getElementById("c");
-      const ctx = canvas.getContext("2d");
+      const canvas = /** @type {HTMLCanvasElement} */ (
+        document.getElementById("c")
+      );
+      const ctx = /** @type {CanvasRenderingContext2D} */ (
+        canvas.getContext("2d")
+      );
+      /** @type {'draw'|'erase'} */
       let tool = "draw",
         brushSize = 2;
       let drawing = false,
         lastX = 0,
         lastY = 0,
+        /** @type {ImageData[]} */
         history = [];
       let canvasReady = false;
 
@@ -617,19 +627,26 @@
         canvasReady = true;
       }
 
+      /** @returns {void} */
       function saveSnap() {
         history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
         if (history.length > 40) history.shift();
       }
+      /** @returns {void} */
       function undoLast() {
         if (history.length) ctx.putImageData(history.pop(), 0, 0);
       }
+      /** @returns {void} */
       function clearCanvas() {
         saveSnap();
         ctx.fillStyle = "#fff";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
+      /**
+       * @param {MouseEvent | TouchEvent} e
+       * @returns {[number, number]}
+       */
       function pos(e) {
         const r = canvas.getBoundingClientRect();
         const s = e.touches ? e.touches[0] : e;
@@ -638,12 +655,14 @@
           (s.clientY - r.top) * (canvas.height / r.height),
         ];
       }
+      /** @param {MouseEvent | TouchEvent} e */
       function startDraw(e) {
         e.preventDefault();
         saveSnap();
         drawing = true;
         [lastX, lastY] = pos(e);
       }
+      /** @param {MouseEvent | TouchEvent} e */
       function doDraw(e) {
         if (!drawing) return;
         e.preventDefault();
@@ -658,6 +677,7 @@
         ctx.stroke();
         [lastX, lastY] = [x, y];
       }
+      /** @returns {void} */
       function endDraw() {
         drawing = false;
       }
@@ -670,6 +690,7 @@
       canvas.addEventListener("touchmove", doDraw, { passive: false });
       canvas.addEventListener("touchend", endDraw);
 
+      /** @param {'draw'|'erase'} t */
       function setTool(t) {
         tool = t;
         document
@@ -679,6 +700,10 @@
           .getElementById("btnErase")
           .classList.toggle("active", t === "erase");
       }
+      /**
+       * @param {number} s
+       * @param {HTMLElement} btn
+       */
       function setSize(s, btn) {
         brushSize = s;
         document
@@ -690,6 +715,7 @@
       // ── Text ──────────────────────────────────────────────────────────────────────
       let chosenFont = "'DM Mono',monospace";
 
+      /** @param {HTMLElement} el */
       function pickFont(el) {
         document
           .querySelectorAll(".font-opt")
@@ -699,11 +725,16 @@
         updateTextPreview();
       }
 
+      /** @returns {void} */
       function updateTextPreview() {
-        const val = document.getElementById("wordInput").value.trim();
+        const val = /** @type {HTMLInputElement} */ (
+          document.getElementById("wordInput")
+        ).value.trim();
         const area = document.getElementById("textPreviewArea");
         const prev = document.getElementById("textPreview");
-        const btn = document.getElementById("btnTextSend");
+        const btn = /** @type {HTMLButtonElement} */ (
+          document.getElementById("btnTextSend")
+        );
 
         if (!val) {
           area.classList.remove("visible");
@@ -721,6 +752,11 @@
           len > 20 ? "1.4rem" : len > 12 ? "2rem" : len > 6 ? "3rem" : "4rem";
       }
 
+      /**
+       * @param {string} text
+       * @param {string} fontFamily
+       * @returns {string} a data URL
+       */
       function textToCanvas(text, fontFamily) {
         const c = document.createElement("canvas");
         c.width = 800;
@@ -753,10 +789,16 @@
       }
 
       // ── Submit ────────────────────────────────────────────────────────────────────
+      /** @param {string} s */
       function setStatus(s) {
         document.getElementById("statusBadge").textContent = s;
       }
 
+      /**
+       * @param {string} dataUrl
+       * @param {'drawing'|'text'} kind
+       * @returns {Promise<any>}
+       */
       async function doSubmit(dataUrl, kind) {
         const res = await fetch(`${host}/api/submit`, {
           method: "POST",
@@ -772,6 +814,10 @@
       }
 
       // Crop to drawn content bounding box, then pad 8% around it, export as square
+      /**
+       * @param {HTMLCanvasElement} src
+       * @returns {string}
+       */
       function squarePad(src) {
         const cx = src.getContext("2d");
         const data = cx.getImageData(0, 0, src.width, src.height).data;
@@ -831,8 +877,11 @@
         return sq.toDataURL("image/png");
       }
 
+      /** @returns {Promise<void>} */
       async function submitDraw() {
-        const btn = document.getElementById("btnSend");
+        const btn = /** @type {HTMLButtonElement} */ (
+          document.getElementById("btnSend")
+        );
         btn.disabled = true;
         setStatus("sending…");
         try {
@@ -856,16 +905,23 @@
         }
       }
 
+      /** @returns {Promise<void>} */
       async function submitText() {
-        const word = document.getElementById("wordInput").value.trim();
+        const word = /** @type {HTMLInputElement} */ (
+          document.getElementById("wordInput")
+        ).value.trim();
         if (!word) return;
-        const btn = document.getElementById("btnTextSend");
+        const btn = /** @type {HTMLButtonElement} */ (
+          document.getElementById("btnTextSend")
+        );
         btn.disabled = true;
         setStatus("sending…");
         try {
           const data = await doSubmit(textToCanvas(word, chosenFont), "text");
           if (data.success) {
-            document.getElementById("wordInput").value = "";
+            /** @type {HTMLInputElement} */ (
+              document.getElementById("wordInput")
+            ).value = "";
             updateTextPreview();
             setStatus("ready");
             goTo("pickerScreen");
@@ -882,11 +938,16 @@
       // ── SSE ───────────────────────────────────────────────────────────────────────
       const ring = document.getElementById("selectionRing");
       const overlay = document.getElementById("flashOverlay");
+      /**
+       * @param {string} color
+       * @param {number} [dur]
+       */
       function flash(color, dur = 800) {
         overlay.style.background = color;
         overlay.style.opacity = "0.5";
         setTimeout(() => (overlay.style.opacity = "0"), dur);
       }
+      /** @param {boolean} on */
       function setRing(on) {
         ring.style.opacity = on ? "1" : "0";
       }

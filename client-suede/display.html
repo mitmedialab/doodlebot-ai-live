@@ -226,12 +226,26 @@
           ? "http://localhost:5000"
           : "https://ai-live-backend-b3808e79d8f1.herokuapp.com";
 
+      /**
+       * @typedef {Object} Sketch
+       * @property {string} filename
+       * @property {string} dataUrl
+       * @property {string} phoneId
+       * @property {string} phoneColor
+       * @property {'drawing'|'text'} kind
+       * @property {boolean} [combinable]
+       */
+
+      /** @type {Sketch[]} */
       let sketches = [];
+      /** @type {Set<string>} */
       let selected = new Set();
+      /** @type {Set<string>} */
       let combining = new Set();
 
       // Prepare your 10 robot images here.
       // For now, you can just duplicate your placeholder name or use actual filenames.
+      /** @type {string[]} */
       const robotImagePool = [
         "./robot.png",
         "./robot.png",
@@ -246,8 +260,14 @@
       ];
 
       // ── Grid sizing ───────────────────────────────────────────────────────────────
+      /**
+       * Compute the column/row count that maximises cell size and apply it to the grid.
+       * @returns {void}
+       */
       function applyGrid() {
-        const strip = document.getElementById("strip");
+        const strip = /** @type {HTMLDivElement} */ (
+          document.getElementById("strip")
+        );
         const count = Math.min(Math.max(sketches.length, MIN_COLS), MAX_CARDS);
 
         // find the column count that maximises cell size while all rows fit in height
@@ -276,8 +296,14 @@
       window.addEventListener("resize", applyGrid);
 
       // ── Render ────────────────────────────────────────────────────────────────────
+      /**
+       * Sync the DOM card strip with the current `sketches` state (add/remove/update).
+       * @returns {void}
+       */
       function renderStrip() {
-        const strip = document.getElementById("strip");
+        const strip = /** @type {HTMLDivElement} */ (
+          document.getElementById("strip")
+        );
         const visible = sketches.slice(0, MAX_CARDS);
         document.getElementById("sketch-count").textContent = sketches.length;
 
@@ -313,6 +339,11 @@
         applyGrid();
       }
 
+      /**
+       * Build a card element for a sketch.
+       * @param {Sketch} sk
+       * @returns {HTMLDivElement}
+       */
       function makeCard(sk) {
         const card = document.createElement("div");
         card.className = "card entering";
@@ -333,12 +364,22 @@
         return card;
       }
 
+      /**
+       * Toggle the selected/combining classes on a card from current state sets.
+       * @param {HTMLElement} card
+       * @param {string} filename
+       * @returns {void}
+       */
       function updateState(card, filename) {
         card.classList.toggle("selected", selected.has(filename));
         card.classList.toggle("combining", combining.has(filename));
       }
 
       // ── Load ──────────────────────────────────────────────────────────────────────
+      /**
+       * Fetch the current sketches from the backend and render them.
+       * @returns {Promise<void>}
+       */
       async function load() {
         const res = await fetch(`${host}/api/sketches`);
         sketches = await res.json();
@@ -349,6 +390,7 @@
       const es = new EventSource(`${host}/stream`);
 
       es.addEventListener("approved_sketch", (e) => {
+        /** @type {Sketch} */
         const sk = JSON.parse(e.data);
         if (!sketches.find((s) => s.filename === sk.filename)) {
           sketches.unshift(sk);
@@ -357,6 +399,7 @@
       });
 
       es.addEventListener("deleted_sketch", (e) => {
+        /** @type {{ filename: string }} */
         const { filename } = JSON.parse(e.data);
         sketches = sketches.filter((s) => s.filename !== filename);
         selected.delete(filename);
@@ -365,12 +408,16 @@
       });
 
       es.addEventListener("selection_changed", (e) => {
+        /** @type {{ selected: Sketch[] }} */
         const { selected: sel } = JSON.parse(e.data);
         selected = new Set(sel.map((s) => s.filename));
         document
           .querySelectorAll(".card")
           .forEach((c) =>
-            c.classList.toggle("selected", selected.has(c.dataset.filename)),
+            c.classList.toggle(
+              "selected",
+              selected.has(/** @type {HTMLElement} */ (c).dataset.filename),
+            ),
           );
       });
 
@@ -379,7 +426,10 @@
         selected = new Set();
         document.querySelectorAll(".card").forEach((c) => {
           c.classList.remove("selected");
-          c.classList.toggle("combining", combining.has(c.dataset.filename));
+          c.classList.toggle(
+            "combining",
+            combining.has(/** @type {HTMLElement} */ (c).dataset.filename),
+          );
         });
       });
       /*
@@ -399,7 +449,7 @@ es.addEventListener('combined', () => {
 
         // 1. Fly the cards to the center
         cards.forEach((card) => {
-          const clone = card.cloneNode(true);
+          const clone = /** @type {HTMLDivElement} */ (card.cloneNode(true));
           const rect = card.getBoundingClientRect();
 
           clone.classList.remove("combining", "selected");
@@ -411,7 +461,7 @@ es.addEventListener('combined', () => {
           clone.style.height = rect.height + "px";
 
           document.body.appendChild(clone);
-          card.style.visibility = "hidden";
+          /** @type {HTMLElement} */ (card).style.visibility = "hidden";
 
           void clone.offsetWidth; // Force reflow
 
@@ -433,7 +483,9 @@ es.addEventListener('combined', () => {
           renderStrip();
 
           // 3. Reveal the Robot
-          const robot = document.getElementById("robotImage");
+          const robot = /** @type {HTMLImageElement} */ (
+            document.getElementById("robotImage")
+          );
           if (robot) {
             // Pick a random robot from your array
             const randomIndex = Math.floor(

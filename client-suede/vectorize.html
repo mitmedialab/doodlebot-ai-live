@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vectorize</title>
+<style>
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: #1a1a1a;
+  }
+
+  .controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px;
+    background: #f4f4f4;
+  }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 14px;
+  }
+
+  .status {
+    font-size: 14px;
+    min-height: 1.2em;
+  }
+
+  .hint {
+    font-size: 12px;
+    opacity: 0.7;
+    margin: 0;
+  }
+
+  .estimates {
+    display: flex;
+    gap: 24px;
+  }
+
+  .estimate {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    min-width: 140px;
+  }
+
+  .estimate h3 {
+    margin: 0 0 4px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.7;
+  }
+
+  .stat {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+  }
+
+  .stat span {
+    opacity: 0.6;
+  }
+
+  .muted {
+    opacity: 0.5;
+    font-size: 13px;
+  }
+
+  .svg-preview {
+    padding: 12px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    max-height: 500px;
+    overflow: auto;
+  }
+
+  .svg-preview svg {
+    max-width: 100%;
+    max-height: 480px;
+    height: auto;
+  }
+
+  code {
+    background: #e6e6e6;
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <label>
+    Image to vectorize
+    <input id="fileInput" type="file" accept="image/*">
+  </label>
+
+  <div class="status" id="status"></div>
+
+  <div class="svg-preview" id="svgPreview" hidden></div>
+
+  <div class="estimates" id="estimates" hidden>
+    <div class="estimate">
+      <h3>Low geometry</h3>
+      <div id="lowBody"></div>
+    </div>
+    <div class="estimate">
+      <h3>High geometry</h3>
+      <div id="highBody"></div>
+    </div>
+  </div>
+
+  <p class="hint">
+    Posts to <code id="endpointCode"></code>. Override the host with
+    <code>?host=localhost:8000</code> for local testing. Most browsers prompt once
+    to allow multiple downloads — accept it to receive all three files.
+  </p>
+</div>
+
+<script>
+  /**
+   * @typedef {Object} Estimate
+   * @property {number} time
+   * @property {number} width
+   * @property {number} height
+   */
+
+  const DEFAULT_HOST = "doodlebot.media.mit.edu";
+
+  /**
+   * Build the vectorize endpoint from the current URL (honouring `?host=`).
+   * @returns {string}
+   */
+  function getEndpoint() {
+    const url = new URL(window.location.href);
+    const host = url.searchParams.get("host") ?? DEFAULT_HOST;
+    const scheme = /^localhost(:\d+)?$|^127\.0\.0\.1(:\d+)?$/.test(host)
+      ? "http"
+      : "https";
+    return `${scheme}://${host}/vectorize`;
+  }
+
+  const endpoint = getEndpoint();
+
+  /**
+   * @typedef {{ kind: "line", distance: number, penDown: boolean }} LineCommand
+   * @typedef {{ kind: "spin", degrees: number }} SpinCommand
+   * @typedef {{ kind: "arc", radius: number, degrees: number }} ArcCommand
+   * @typedef {LineCommand | SpinCommand | ArcCommand} ReceivedCommand
+   * @typedef {{ type: "line" | "arc", distance?: number, radius?: number, angle?: number, pen: "up" | "down" }} RobotCommand
+   */
+
+  const scale = 100;
+  const SCALE_TO_CM = 0.02;
+  const STEPS_TO_CM = 7.16 * 16;
+  const CM_TO_STEPS = STEPS_TO_CM;
+  const CM_TO_INCH = 0.393701;
+
+  // ── Motion constants (firmware) ──────────────────────────────────────────────
+  const MAX_TURN_SPEED = 3200; // steps/sec
+  const ACCELERATION_MAX_DRAWING = 1000; // steps/sec^2
+
+  const WHEELBASE_RADIUS = 2.93; // inches
+  const STEP_LENGTH = 0.055; // inches per full step
+  const MICROSTEPS_PER_STEP = 16;
+
+  /**
+   * Core TMC429 motion estimator — triangle/trapezoid velocity profile.
+   * @param {number} distanceSteps
+   * @param {number} maxSpeed
+   * @param {number} acceleration
+   * @returns {number} seconds
+   */
+  function estimateMotionTime(distanceSteps, maxSpeed, acceleration) {
+    distanceSteps = Math.abs(distanceSteps);
+
+    if (distanceSteps <= 0 || maxSpeed <= 0 || acceleration <= 0) {
+      return 0;
+    }
+
+    // Distance needed to accelerate + decelerate
+    const rampDistance = (maxSpeed * maxSpeed) / acceleration;
+
+    // TRIANGLE PROFILE — never reaches max speed
+    if (distanceSteps <= rampDistance) {
+      return 2 * Math.sqrt(distanceSteps / acceleration);
+    }
+
+    // TRAPEZOID PROFILE
+    const accelTime = maxSpeed / acceleration;
+    const cruiseDistance = distanceSteps - rampDistance;
+    const cruiseTime = cruiseDistance / maxSpeed;
+
+    return 2 * accelTime + cruiseTime;
+  }
+
+  /**
+   * Time estimate for a straight line command.
+   * @param {number} distanceSteps
+   * @param {number} [speed]
+   * @returns {number} seconds
+   */
+  function estimateLineTime(distanceSteps, speed = 2000) {
+    return estimateMotionTime(
+      Math.abs(distanceSteps),
+      speed,
+      ACCELERATION_MAX_DRAWING,
+    );
+  }
+
+  /**
+   * Time estimate for an arc/turn command. The slower wheel determines the
+   * total move time.
+   * @param {number} radius   turn radius (inches)
+   * @param {number} angleDeg arc angle (degrees)
+   * @returns {number} seconds
+   */
+  function estimateArcTime(radius, angleDeg) {
+    angleDeg = Math.abs(angleDeg);
+
+    // OUTER WHEEL
+    const outerRadius = WHEELBASE_RADIUS + radius;
+    const outerCircumference = 2 * Math.PI * outerRadius;
+    const outerDistance =
+      (outerCircumference * (angleDeg / 360)) /
+      (STEP_LENGTH / MICROSTEPS_PER_STEP);
+
+    // INNER WHEEL
+    const innerRadius = Math.abs(radius - WHEELBASE_RADIUS);
+    const innerCircumference = 2 * Math.PI * innerRadius;
+    const innerDistance =
+      (innerCircumference * (angleDeg / 360)) /
+      (STEP_LENGTH / MICROSTEPS_PER_STEP);
+
+    // MATCH FIRMWARE
+    const outerTravelTimeNoAccel = outerDistance / MAX_TURN_SPEED;
+    const innerSpeed = Math.abs(innerDistance / outerTravelTimeNoAccel);
+
+    let outerAccel;
+    let innerAccel;
+
+    if (innerSpeed <= MAX_TURN_SPEED) {
+      outerAccel = ACCELERATION_MAX_DRAWING;
+      innerAccel = (outerAccel * innerSpeed) / MAX_TURN_SPEED;
+    } else {
+      innerAccel = ACCELERATION_MAX_DRAWING;
+      outerAccel = (innerAccel * MAX_TURN_SPEED) / innerSpeed;
+    }
+
+    // ESTIMATE EACH WHEEL
+    const outerTime = estimateMotionTime(outerDistance, MAX_TURN_SPEED, outerAccel);
+    const innerTime = estimateMotionTime(innerDistance, innerSpeed, innerAccel);
+
+    // Slower wheel determines total move time
+    return Math.max(outerTime, innerTime);
+  }
+
+  /**
+   * Walk the command list, tracking the pen position to find the drawing's
+   * bounding box, and convert it to physical width/height.
+   * @param {RobotCommand[]} commands
+   * @returns {{ width: number, height: number }}
+   */
+  function estimateSize(commands) {
+    let x = 0;
+    let y = 0;
+    let heading = 0;
+    // Track the extremes
+    let minX = 0,
+      maxX = 0;
+    let minY = 0,
+      maxY = 0;
+
+    /**
+     * @param {number} curX
+     * @param {number} curY
+     */
+    const updateBounds = (curX, curY) => {
+      minX = Math.min(minX, curX);
+      maxX = Math.max(maxX, curX);
+      minY = Math.min(minY, curY);
+      maxY = Math.max(maxY, curY);
+    };
+    commands.forEach((cmd) => {
+      if (cmd.type == "arc") {
+        const angleRad = (cmd.angle * Math.PI) / 180;
+        if (cmd.radius === 0) {
+          heading -= angleRad;
+        } else {
+          const r = cmd.radius * scale * SCALE_TO_CM;
+          const radius = Math.abs(r);
+          const canvasSweep = -1 * angleRad; // REMOVE the -1 flip
+
+          const side = canvasSweep < 0 ? 1 : -1; // fix sign consistency
+
+          const centerX = x + side * r * Math.sin(heading);
+          const centerY = y - side * r * Math.cos(heading);
+
+          const startAngle = Math.atan2(y - centerY, x - centerX);
+          const endAngle = startAngle + canvasSweep;
+
+          const anticlockwise = canvasSweep < 0;
+
+          x = centerX + Math.cos(endAngle) * r;
+          y = centerY + Math.sin(endAngle) * r;
+
+          heading += canvasSweep;
+        }
+      } else if (cmd.type === "line") {
+        const dist = cmd.distance * scale * SCALE_TO_CM;
+        x += dist * Math.cos(heading);
+        y += dist * Math.sin(heading);
+      }
+      updateBounds(x, y);
+    });
+    const width = 0.0121 * Math.abs(maxX - minX);
+    const height = 0.01285 * Math.abs(maxY - minY);
+
+    return {
+      width: Math.round(width * 100) / 100,
+      height: Math.round(height * 100) / 100,
+    };
+  }
+
+  /**
+   * Estimate plot dimensions and time from a geometry command list.
+   * @param {ReceivedCommand[]} data
+   * @returns {{ moveCommands: RobotCommand[], width: number, height: number, time: number } | undefined}
+   */
+  const process = (data) => {
+    try {
+      /** @type {RobotCommand[]} */
+      const preProcessedCommands = data.map(
+        /** @param {ReceivedCommand} cmd */ (cmd) => {
+          if (cmd.kind == "arc")
+            return {
+              type: "arc",
+              radius: cmd.radius,
+              angle: cmd.degrees,
+              pen: "down",
+            };
+          else if (cmd.kind === "line")
+            return {
+              type: "line",
+              distance: cmd.distance,
+              pen: cmd.penDown ? "down" : "up",
+            };
+          else if (cmd.kind == "spin")
+            return {
+              type: "arc",
+              radius: 0,
+              angle: cmd.degrees,
+              pen: "up",
+            };
+        },
+      );
+
+      const { width, height } = estimateSize(preProcessedCommands);
+
+      /** @type {RobotCommand[]} */
+      const moveCommands = preProcessedCommands.map((cmd) => {
+        if (cmd.type == "arc") {
+          const radiusCm = cmd.radius * SCALE_TO_CM;
+          const radiusInches = radiusCm * CM_TO_INCH;
+          return { ...cmd, radius: radiusInches };
+        } else if (cmd.type === "line") {
+          const distanceCm = cmd.distance * SCALE_TO_CM;
+          const steps = distanceCm * CM_TO_STEPS;
+          return { ...cmd, distance: Math.round(steps) };
+        }
+        return cmd;
+      });
+
+      let penState = "up";
+
+      // TIME ESTIMATION
+      let totalTravelTime = 0;
+      for (const command of moveCommands) {
+        if (command.pen === "up" && penState === "down") {
+          penState = "up";
+          totalTravelTime += 0.003;
+        }
+
+        if (command.pen === "down" && penState === "up") {
+          penState = "down";
+          totalTravelTime += 0.003;
+        }
+        if (command.type == "arc") {
+          let travelTime = estimateArcTime(command.radius, command.angle);
+          totalTravelTime += travelTime;
+        } else {
+          let travelTime = estimateLineTime(command.distance);
+          totalTravelTime += travelTime;
+        }
+        totalTravelTime += 0.65;
+      }
+      const time = Math.round(totalTravelTime * 100) / 100;
+      return { moveCommands, width, height, time };
+    } catch (err) {
+      console.error("Invalid data", err);
+    }
+  };
+
+  /**
+   * Trigger a browser download of in-memory content.
+   * @param {string} filename
+   * @param {string} content
+   * @param {string} mimeType
+   * @returns {void}
+   */
+  function download(filename, content, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = Object.assign(document.createElement("a"), {
+      href: url,
+      download: filename,
+    });
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Update the status line.
+   * @param {'idle' | 'uploading' | 'done' | 'error'} state
+   * @param {string} [message]
+   * @returns {void}
+   */
+  function setStatus(state, message = "") {
+    const el = document.getElementById("status");
+    if (state === "uploading") el.textContent = "Uploading and vectorizing…";
+    else if (state === "done") el.textContent = "✅ Downloaded JSON + SVG outputs";
+    else if (state === "error") el.textContent = "❌ " + message;
+    else el.textContent = "";
+  }
+
+  /**
+   * Render (or hide) the inline SVG preview.
+   * @param {string | null} svg
+   * @returns {void}
+   */
+  function renderSvg(svg) {
+    const el = /** @type {HTMLDivElement} */ (document.getElementById("svgPreview"));
+    if (svg) {
+      el.innerHTML = svg;
+      el.hidden = false;
+    } else {
+      el.innerHTML = "";
+      el.hidden = true;
+    }
+  }
+
+  /**
+   * Build the inner HTML for one estimate column.
+   * @param {Estimate | null} est
+   * @returns {string}
+   */
+  function estimateHtml(est) {
+    if (!est) return '<div class="muted">—</div>';
+    return (
+      `<div class="stat"><span>Time</span><div>${est.time} s</div></div>` +
+      `<div class="stat"><span>Width</span><div>${est.width} mm</div></div>` +
+      `<div class="stat"><span>Height</span><div>${est.height} mm</div></div>`
+    );
+  }
+
+  /**
+   * Render (or hide) the estimates panel.
+   * @param {Estimate | null} low
+   * @param {Estimate | null} high
+   * @returns {void}
+   */
+  function renderEstimates(low, high) {
+    const container = /** @type {HTMLDivElement} */ (document.getElementById("estimates"));
+    if (!low && !high) {
+      container.hidden = true;
+      return;
+    }
+    document.getElementById("lowBody").innerHTML = estimateHtml(low);
+    document.getElementById("highBody").innerHTML = estimateHtml(high);
+    container.hidden = false;
+  }
+
+  /**
+   * POST the image to the vectorize endpoint, download the three outputs,
+   * and surface the SVG preview + estimates.
+   * @param {File} file
+   * @returns {Promise<void>}
+   */
+  async function vectorizeAndDownload(file) {
+    const form = new FormData();
+    form.append("image_file", file);
+
+    const res = await fetch(endpoint, { method: "POST", body: form });
+    if (!res.ok)
+      throw new Error(`Vectorize failed: ${res.status} ${res.statusText}`);
+    const data = await res.json();
+
+    const base = file.name.replace(/\.[^.]+$/, "");
+
+    const low = data.low_geometry;
+    const high = data.high_geometry;
+
+    const lowResult = process(low);
+    const highResult = process(high);
+    const lowEstimate = lowResult
+      ? { time: lowResult.time, width: lowResult.width, height: lowResult.height }
+      : null;
+    const highEstimate = highResult
+      ? { time: highResult.time, width: highResult.width, height: highResult.height }
+      : null;
+
+    download(
+      `${base}.low_geometry_consolidated.json`,
+      JSON.stringify(low, null, 2),
+      "application/json",
+    );
+    download(
+      `${base}.high_geometry_commands.json`,
+      JSON.stringify(high, null, 2),
+      "application/json",
+    );
+    download(`${base}.svg`, data.svg, "image/svg+xml");
+
+    renderEstimates(lowEstimate, highEstimate);
+    renderSvg(typeof data.svg === "string" ? data.svg : null);
+  }
+
+  /**
+   * File-input change handler.
+   * @param {Event} e
+   * @returns {Promise<void>}
+   */
+  async function handleChange(e) {
+    const input = /** @type {HTMLInputElement} */ (e.currentTarget);
+    const file = input.files?.[0];
+    if (!file) return;
+
+    setStatus("uploading");
+    try {
+      await vectorizeAndDownload(file);
+      setStatus("done");
+    } catch (err) {
+      setStatus("error", err instanceof Error ? err.message : String(err));
+      console.error(err);
+    }
+  }
+
+  // ── Wire up ─────────────────────────────────────────────────────────────────
+  document.getElementById("endpointCode").textContent = endpoint;
+  document.getElementById("fileInput").addEventListener("change", handleChange);
+</script>
+</body>
+</html>

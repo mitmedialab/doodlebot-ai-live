@@ -844,10 +844,35 @@
     </div>
 
     <script>
+      /**
+       * @typedef {Object} Sketch
+       * @property {string} filename
+       * @property {string} dataUrl
+       * @property {string} phoneId
+       * @property {string} phoneColor
+       * @property {'drawing'|'text'} kind
+       * @property {boolean} [combinable]
+       */
+      /** @typedef {{ id: string, label: string }} ModelOption */
+      /** @typedef {{ name: string, prompt: string }} Preset */
+      /**
+       * @typedef {Object} CombineResult
+       * @property {string} model_label
+       * @property {string} [error]
+       * @property {string} [image]
+       * @property {string} [saved_as]
+       */
+
       // ── Token ─────────────────────────────────────────────────────────────────────
       const urlToken = new URLSearchParams(window.location.search).get("token");
-      if (urlToken) document.getElementById("adminToken").value = urlToken;
-      const tok = () => document.getElementById("adminToken").value.trim();
+      if (urlToken)
+        /** @type {HTMLInputElement} */ (
+          document.getElementById("adminToken")
+        ).value = urlToken;
+      const tok = () =>
+        /** @type {HTMLInputElement} */ (
+          document.getElementById("adminToken")
+        ).value.trim();
 
       const MODE = "PROD";
       const host =
@@ -856,11 +881,15 @@
           : "https://ai-live-backend-b3808e79d8f1.herokuapp.com";
 
       // ── State ─────────────────────────────────────────────────────────────────────
+      /** @type {Sketch[]} */
       let pending = []; // [{filename, dataUrl, phoneId, phoneColor, kind}]
+      /** @type {Sketch[]} */
       let approved = [];
+      /** @type {string[]} */
       let selected = []; // filenames of approved sketches to combine
 
       // ── Load ──────────────────────────────────────────────────────────────────────
+      /** @returns {Promise<void>} */
       async function load() {
         const [pendRes, appRes, modelsRes, presetsRes] = await Promise.all([
           fetch(`${host}/api/pending`, { headers: { "X-Admin-Token": tok() } }),
@@ -877,6 +906,7 @@
 
         // populate model checkboxes
         if (modelsRes.ok) {
+          /** @type {ModelOption[]} */
           const models = await modelsRes.json();
           const container = document.getElementById("modelChecks");
           container.innerHTML = "";
@@ -901,7 +931,9 @@
         // populate preset dropdown
         if (presetsRes.ok) {
           _presets = await presetsRes.json();
-          const sel = document.getElementById("presetSelect");
+          const sel = /** @type {HTMLSelectElement} */ (
+            document.getElementById("presetSelect")
+          );
           sel.innerHTML = "";
           _presets.forEach((p) => {
             const opt = document.createElement("option");
@@ -913,11 +945,17 @@
         }
       }
 
+      /** @type {Preset[]} */
       let _presets = []; // cached preset list
 
+      /** @returns {void} */
       function onPresetChange() {
-        const preset = document.getElementById("presetSelect").value;
-        const ta = document.getElementById("combinePrompt");
+        const preset = /** @type {HTMLSelectElement} */ (
+          document.getElementById("presetSelect")
+        ).value;
+        const ta = /** @type {HTMLTextAreaElement} */ (
+          document.getElementById("combinePrompt")
+        );
         const saveRow = document.getElementById("savePresetRow");
         if (preset === "Custom") {
           ta.value = "";
@@ -931,9 +969,14 @@
         }
       }
 
+      /** @returns {Promise<void>} */
       async function saveCustomPreset() {
-        const name = document.getElementById("presetName").value.trim();
-        const prompt = document.getElementById("combinePrompt").value.trim();
+        const name = /** @type {HTMLInputElement} */ (
+          document.getElementById("presetName")
+        ).value.trim();
+        const prompt = /** @type {HTMLTextAreaElement} */ (
+          document.getElementById("combinePrompt")
+        ).value.trim();
         if (!name) {
           alert("Enter a preset name");
           return;
@@ -951,20 +994,27 @@
           body: JSON.stringify({ name, prompt }),
         });
         if (res.ok) {
-          document.getElementById("presetName").value = "";
+          /** @type {HTMLInputElement} */ (
+            document.getElementById("presetName")
+          ).value = "";
           await refreshPresets();
-          document.getElementById("presetSelect").value = name;
+          /** @type {HTMLSelectElement} */ (
+            document.getElementById("presetSelect")
+          ).value = name;
           onPresetChange();
         } else {
           alert("Failed to save preset");
         }
       }
 
+      /** @returns {Promise<void>} */
       async function refreshPresets() {
         const res = await fetch(`${host}/api/presets`);
         if (!res.ok) return;
         _presets = await res.json();
-        const sel = document.getElementById("presetSelect");
+        const sel = /** @type {HTMLSelectElement} */ (
+          document.getElementById("presetSelect")
+        );
         const cur = sel.value;
         sel.innerHTML = "";
         _presets.forEach((p) => {
@@ -978,6 +1028,7 @@
       }
 
       // ── Queue render ──────────────────────────────────────────────────────────────
+      /** @returns {void} */
       function renderQueue() {
         const grid = document.getElementById("queueGrid");
         const badge = document.getElementById("pendingBadge");
@@ -993,6 +1044,10 @@
         pending.forEach((sk) => grid.appendChild(makePendingCard(sk)));
       }
 
+      /**
+       * @param {Sketch} sk
+       * @returns {HTMLDivElement}
+       */
       function makePendingCard(sk) {
         const card = document.createElement("div");
         card.className = "card";
@@ -1044,6 +1099,7 @@
       }
 
       // ── Approved render ───────────────────────────────────────────────────────────
+      /** @returns {void} */
       function renderApproved() {
         const grid = document.getElementById("approvedGrid");
         const badge = document.getElementById("approvedBadge");
@@ -1058,6 +1114,10 @@
         approved.forEach((sk) => grid.appendChild(makeApprovedCard(sk)));
       }
 
+      /**
+       * @param {Sketch} sk
+       * @returns {HTMLDivElement}
+       */
       function makeApprovedCard(sk) {
         const card = document.createElement("div");
         card.className =
@@ -1098,6 +1158,11 @@
       }
 
       // ── Moderation actions ────────────────────────────────────────────────────────
+      /**
+       * @param {string} filename
+       * @param {boolean} [combinable]
+       * @returns {Promise<void>}
+       */
       async function doApprove(filename, combinable = false) {
         const res = await fetch(`${host}/api/pending/${filename}/approve`, {
           method: "POST",
@@ -1116,6 +1181,10 @@
         // approved list will update via SSE
       }
 
+      /**
+       * @param {string} filename
+       * @returns {Promise<void>}
+       */
       async function doReject(filename) {
         await fetch(`${host}/api/pending/${filename}/reject`, {
           method: "POST",
@@ -1126,6 +1195,10 @@
       }
 
       // ── Selection ─────────────────────────────────────────────────────────────────
+      /**
+       * @param {string} filename
+       * @returns {void}
+       */
       function toggleSelect(filename) {
         const idx = selected.indexOf(filename);
         if (idx > -1) selected.splice(idx, 1);
@@ -1135,6 +1208,7 @@
         pushSelection();
       }
 
+      /** @returns {void} */
       function clearSelection() {
         selected = [];
         renderApproved();
@@ -1142,11 +1216,14 @@
         pushSelection();
       }
 
+      /** @returns {void} */
       function renderSelList() {
         const list = document.getElementById("selList");
         const cnt = document.getElementById("selCount");
         cnt.textContent = selected.length;
-        document.getElementById("combineBtn").disabled = selected.length < 2;
+        /** @type {HTMLButtonElement} */ (
+          document.getElementById("combineBtn")
+        ).disabled = selected.length < 2;
         document.getElementById("selHint").style.display = selected.length
           ? "none"
           : "block";
@@ -1163,6 +1240,7 @@
         });
       }
 
+      /** @returns {Promise<void>} */
       async function pushSelection() {
         if (!tok()) return;
         const payload = selected.map((fn) => {
@@ -1184,12 +1262,16 @@
       }
 
       // ── Combine ───────────────────────────────────────────────────────────────────
+      /** @returns {string[]} */
       function getSelectedModels() {
-        return [...document.querySelectorAll("#modelChecks input:checked")].map(
-          (cb) => cb.value,
-        );
+        return [
+          .../** @type {NodeListOf<HTMLInputElement>} */ (
+            document.querySelectorAll("#modelChecks input:checked")
+          ),
+        ].map((cb) => cb.value);
       }
 
+      /** @returns {Promise<void>} */
       async function combineSelected() {
         if (!tok()) {
           alert("Enter admin token");
@@ -1201,7 +1283,9 @@
           return;
         }
 
-        const btn = document.getElementById("combineBtn");
+        const btn = /** @type {HTMLButtonElement} */ (
+          document.getElementById("combineBtn")
+        );
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner"></span>Generating…';
         document.getElementById("resultsList").innerHTML = "";
@@ -1216,8 +1300,12 @@
             body: JSON.stringify({
               filenames: selected,
               models: models,
-              preset: document.getElementById("presetSelect").value,
-              prompt: document.getElementById("combinePrompt").value.trim(),
+              preset: /** @type {HTMLSelectElement} */ (
+                document.getElementById("presetSelect")
+              ).value,
+              prompt: /** @type {HTMLTextAreaElement} */ (
+                document.getElementById("combinePrompt")
+              ).value.trim(),
             }),
           });
           if (!res.ok) {
@@ -1233,7 +1321,7 @@
           if (data.success && data.results) {
             const list = document.getElementById("resultsList");
             list.innerHTML = "";
-            data.results.forEach((r) => {
+            data.results.forEach((/** @type {CombineResult} */ r) => {
               const card = document.createElement("div");
               card.className = "result-card";
               const label = document.createElement("div");
@@ -1278,6 +1366,7 @@
       }
 
       // ── Auto-combine ─────────────────────────────────────────────────────────────
+      /** @returns {Promise<void>} */
       async function autoCombine() {
         if (!tok()) {
           alert("Enter admin token");
@@ -1289,7 +1378,9 @@
           return;
         }
 
-        const btn = document.getElementById("autoCombineBtn");
+        const btn = /** @type {HTMLButtonElement} */ (
+          document.getElementById("autoCombineBtn")
+        );
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner"></span>Auto-generating…';
         document.getElementById("resultsList").innerHTML = "";
@@ -1303,9 +1394,17 @@
             },
             body: JSON.stringify({
               models: models,
-              preset: document.getElementById("presetSelect").value,
-              prompt: document.getElementById("combinePrompt").value.trim(),
-              count: parseInt(document.getElementById("autoCount").value),
+              preset: /** @type {HTMLSelectElement} */ (
+                document.getElementById("presetSelect")
+              ).value,
+              prompt: /** @type {HTMLTextAreaElement} */ (
+                document.getElementById("combinePrompt")
+              ).value.trim(),
+              count: parseInt(
+                /** @type {HTMLSelectElement} */ (
+                  document.getElementById("autoCount")
+                ).value,
+              ),
             }),
           });
           if (!res.ok) {
@@ -1338,7 +1437,7 @@
               list.appendChild(info);
             }
 
-            data.results.forEach((r) => {
+            data.results.forEach((/** @type {CombineResult} */ r) => {
               const card = document.createElement("div");
               card.className = "result-card";
               const label = document.createElement("div");
@@ -1382,6 +1481,12 @@
       }
 
       // ── Vectorize ────────────────────────────────────────────────────────────────
+      /**
+       * @param {HTMLButtonElement} btn
+       * @param {string} imgSrc
+       * @param {string} filename
+       * @returns {Promise<void>}
+       */
       async function vectorizeImage(btn, imgSrc, filename) {
         // If already vectorized, reopen modal from cache
         if (btn._vecData) {
@@ -1426,6 +1531,11 @@
         }
       }
 
+      /**
+       * @param {{ svg: string, low_geometry: unknown, high_geometry: unknown }} data
+       * @param {string} filename
+       * @returns {void}
+       */
       function showVecModal(data, filename) {
         const container = document.getElementById("vecSvgContainer");
         const downloads = document.getElementById("vecDownloads");
@@ -1466,11 +1576,16 @@
         document.getElementById("vecOverlay").style.display = "flex";
       }
 
+      /**
+       * @param {Event} [e]
+       * @returns {void}
+       */
       function closeVecModal(e) {
         if (e && e.target !== document.getElementById("vecOverlay")) return;
         document.getElementById("vecOverlay").style.display = "none";
       }
 
+      /** @returns {Promise<void>} */
       async function loadCoverage() {
         try {
           const res = await fetch(`${host}/api/coverage`);
@@ -1493,6 +1608,7 @@
         } catch (_) {}
       }
 
+      /** @returns {Promise<void>} */
       async function resetCoverage() {
         if (!tok()) {
           alert("Enter admin token");
@@ -1506,6 +1622,10 @@
       }
 
       // ── SSE ───────────────────────────────────────────────────────────────────────
+      /**
+       * @param {string} msg
+       * @returns {void}
+       */
       function setStatus(msg) {
         document.getElementById("statusText").textContent = msg;
       }
