@@ -152,7 +152,7 @@ def execute_commands(commands: list[DrawingCommand]) -> None:
     """Issue line/spin/arc commands to the drive + pen, in order."""
     for cmd in commands:
         if isinstance(cmd, ArcCommand):
-            send_command(f"(t,{cmd.radius},{cmd.degrees})")
+            send_command(f"t,{cmd.radius},{cmd.degrees}")
 
         elif isinstance(cmd, LineCommand):
             pen = 1 if cmd.penDown else 0
