@@ -264,7 +264,7 @@ def run(config: Config) -> None:
 if __name__ == "__main__":
     execute_commands(
         [
-            ArcCommand(radius=100, degrees=90),
+            ArcCommand(radius=2, degrees=90),
         ]
     )
     # import argparse
