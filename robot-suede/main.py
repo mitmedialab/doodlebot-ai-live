@@ -159,7 +159,7 @@ def execute_commands(commands: list[DrawingCommand]) -> None:
             send_command(f"(m,{cmd.distance},{cmd.distance},2000,2000)")
 
         elif isinstance(cmd, SpinCommand):
-            send_command(f"(t,0,{cmd.degrees})")
+            send_command(f"t,0,{cmd.degrees}")
 
 
 # --------------------------------------------------------------------------- #
