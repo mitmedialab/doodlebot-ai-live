@@ -145,7 +145,7 @@ def navigate_to(target: Pose, current: Pose) -> None:
 
 def send_command(cmd: str) -> None:
     print(f"Sending: {cmd}")
-    send((cmd + "\n").encode("utf-8"))
+    send(cmd)
 
 
 def execute_commands(commands: list[DrawingCommand]) -> None:
