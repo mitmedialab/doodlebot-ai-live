@@ -25,7 +25,7 @@ PORT = 5000
 def send(msg):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, PORT))
-        s.sendall((msg + "\n").encode())
+        s.sendall(("fromDoodlebotAILive|" + msg + "\n").encode())
 
 
 # --------------------------------------------------------------------------- #
