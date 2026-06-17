@@ -17,6 +17,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Literal, Optional, Union
 import socket
+import math
 
 HOST = "127.0.0.1"
 PORT = 5000
@@ -138,9 +139,36 @@ def estimate_pose(known: list[ArucoMarker]) -> Pose:
     raise NotImplementedError("pose estimation is not implemented on this stub")
 
 
+def normalize_angle(a: float) -> float:
+    while a > math.pi:
+        a -= 2 * math.pi
+    while a < -math.pi:
+        a += 2 * math.pi
+    return a
+
+
 def navigate_to(target: Pose, current: Pose) -> None:
-    """Drive the bot from ``current`` to ``target`` (pen up)."""
-    raise NotImplementedError("navigation is not implemented on this stub")
+    """Drive the bot from current to target (pen up)."""
+
+    dx = target.x - current.x
+    dy = target.y - current.y
+
+    # canvas-style coordinate system (same as your TS)
+    target_heading = math.atan2(-dy, dx)
+
+    turn = normalize_angle(target_heading - math.radians(current.headingDegrees))
+    distance = math.hypot(dx, dy)
+
+    # Build commands exactly like your TS goToPoint()
+    arc_cmd = ArcCommand(
+        radius=0,
+        degrees=math.degrees(turn),  # convert radians → degrees for Arduino protocol
+    )
+
+    line_cmd = LineCommand(distance=distance, penDown=False)
+
+    # Execute through your existing pipeline
+    execute_commands([arc_cmd, line_cmd])
 
 
 def send_command(cmd: str) -> None:
@@ -156,7 +184,7 @@ def execute_commands(commands: list[DrawingCommand]) -> None:
 
         elif isinstance(cmd, LineCommand):
             pen = 1 if cmd.penDown else 0
-            send_command(f"(m,{cmd.distance},{cmd.distance},2000,2000)")
+            send_command(f"m,{cmd.distance},{cmd.distance},2000,2000")
 
         elif isinstance(cmd, SpinCommand):
             send_command(f"t,0,{cmd.degrees}")
