@@ -20,7 +20,7 @@ from typing import Literal, Optional, Union
 import requests
 import serial
 
-SERIAL = serial.Serial("/dev/ttyAMA3", baudrate=115200, timeout=1)
+SERIAL = serial.Serial("/dev/ttyAMA2", baudrate=115200, timeout=1)
 
 # --------------------------------------------------------------------------- #
 # Configuration
