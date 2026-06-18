@@ -669,6 +669,126 @@
         opacity: 1;
       }
 
+      /* ── Enlarge / maximize ── */
+      .media-wrap {
+        position: relative;
+      }
+      .media-wrap > img,
+      .media-wrap > .vec-svg {
+        cursor: zoom-in;
+      }
+      .maximize-btn {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 22px;
+        height: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        font-size: 0.85rem;
+        line-height: 1;
+        border: 1px solid #555;
+        background: rgba(0, 0, 0, 0.55);
+        color: #f5f0e8;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .maximize-btn:hover {
+        background: #d4a843;
+        border-color: #d4a843;
+        color: #0e0e0c;
+      }
+
+      /* ── Enlarge preview modal ── */
+      .preview-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(0, 0, 0, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .preview-modal {
+        position: relative;
+        background: #0e0e0c;
+        border: 1px solid #2a2a2a;
+        padding: 1.4rem;
+        max-width: 92vw;
+        max-height: 92vh;
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.9rem;
+      }
+      .preview-close {
+        position: absolute;
+        top: 0.4rem;
+        right: 0.6rem;
+        background: none;
+        border: none;
+        color: #888;
+        font-size: 1.5rem;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0;
+      }
+      .preview-close:hover {
+        color: #f5f0e8;
+      }
+      .preview-body {
+        display: flex;
+        justify-content: center;
+      }
+      .preview-img {
+        max-width: 84vw;
+        max-height: 78vh;
+        height: auto;
+        display: block;
+      }
+      .preview-svg {
+        background: #fff;
+        padding: 0.5rem;
+      }
+      .preview-svg svg {
+        display: block;
+        width: auto;
+        max-width: 84vw;
+        max-height: 78vh;
+        height: auto;
+      }
+      .preview-actions {
+        display: flex;
+        gap: 0.6rem;
+      }
+      .preview-dl,
+      .preview-actions .publish-btn {
+        display: inline-block;
+        width: auto;
+        margin: 0;
+        font-family: "DM Mono", monospace;
+        font-size: 0.62rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 0.45rem 1.1rem;
+        text-align: center;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .preview-dl {
+        border: 1px solid #5a9e5a;
+        background: transparent;
+        color: #5a9e5a;
+      }
+      .preview-dl:hover {
+        background: #5a9e5a;
+        color: #0e0e0c;
+      }
+
     </style>
   </head>
   <body>
@@ -676,7 +796,7 @@
       <header>
         <h1>Sketch <em>Gallery</em></h1>
         <a
-          href="/robots"
+          href="./robots"
           style="
             font-size: 0.62rem;
             text-transform: uppercase;
@@ -829,6 +949,20 @@
           <span id="liveDot" class="off"></span>
           <span id="statusText">connecting…</span>
         </div>
+      </div>
+    </div>
+
+    <!-- Enlarge preview modal (image or vectorization) -->
+    <div
+      id="previewOverlay"
+      class="preview-overlay"
+      style="display: none"
+      onclick="closePreview(event)"
+    >
+      <div class="preview-modal" onclick="event.stopPropagation()">
+        <button class="preview-close" onclick="closePreview()">&times;</button>
+        <div id="previewBody" class="preview-body"></div>
+        <div id="previewActions" class="preview-actions"></div>
       </div>
     </div>
 
@@ -1444,7 +1578,11 @@
         dl.href = r.image;
         dl.download = r.saved_as || "combined.png";
         dl.textContent = "↓ Download";
-        card.appendChild(img);
+        card.appendChild(
+          mediaWrap(img, () =>
+            openImagePreview(r.image, r.saved_as || "combined.png"),
+          ),
+        );
         card.appendChild(dl);
 
         // Eager vectorization: start as soon as the card is built.
@@ -1501,13 +1639,23 @@
         svgWrap.className = "vec-svg";
         // Show only the low-geometry rendering (the commands we publish).
         svgWrap.innerHTML = data.low_geometry_svg || data.svg;
-        area.appendChild(svgWrap);
 
         const pubBtn = document.createElement("button");
         pubBtn.className = "publish-btn";
         pubBtn.textContent = "Publish to Robot";
         pubBtn.onclick = () =>
           publishToRobot(pubBtn, data.low_geometry, filename);
+
+        area.appendChild(
+          mediaWrap(svgWrap, () =>
+            openVecPreview(
+              svgWrap.innerHTML,
+              data.low_geometry,
+              filename,
+              pubBtn,
+            ),
+          ),
+        );
         area.appendChild(pubBtn);
       }
 
@@ -1578,6 +1726,114 @@
           btn.disabled = false;
           btn.textContent = "Publish to Robot";
         }
+      }
+
+      // ── Enlarge preview (image / vectorization) ──────────────────────────────────
+      /**
+       * Wrap a media node (image or SVG container) with a corner "maximize"
+       * button; clicking the button or the media itself opens the enlarge modal.
+       * @param {HTMLElement} node
+       * @param {() => void} onMax
+       * @returns {HTMLDivElement}
+       */
+      function mediaWrap(node, onMax) {
+        const wrap = document.createElement("div");
+        wrap.className = "media-wrap";
+        wrap.appendChild(node);
+        const btn = document.createElement("button");
+        btn.className = "maximize-btn";
+        btn.title = "Enlarge";
+        btn.textContent = "⤢";
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          onMax();
+        };
+        wrap.appendChild(btn);
+        node.addEventListener("click", onMax);
+        return wrap;
+      }
+
+      /**
+       * @param {HTMLElement} bodyNode
+       * @param {HTMLElement[]} [actionNodes]
+       * @returns {void}
+       */
+      function showPreview(bodyNode, actionNodes) {
+        const body = document.getElementById("previewBody");
+        body.innerHTML = "";
+        body.appendChild(bodyNode);
+        const actions = document.getElementById("previewActions");
+        actions.innerHTML = "";
+        (actionNodes || []).forEach((n) => actions.appendChild(n));
+        document.getElementById("previewOverlay").style.display = "flex";
+      }
+
+      /** @param {Event} [e] @returns {void} */
+      function closePreview(e) {
+        // Only the backdrop (or the × button, which passes no event) dismisses;
+        // clicks inside the modal are stopped from bubbling.
+        if (e && e.target !== document.getElementById("previewOverlay")) return;
+        document.getElementById("previewOverlay").style.display = "none";
+        document.getElementById("previewBody").innerHTML = "";
+        document.getElementById("previewActions").innerHTML = "";
+      }
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closePreview();
+      });
+
+      /**
+       * Enlarge the combined image, with a Download action.
+       * @param {string} imgSrc
+       * @param {string} filename
+       * @returns {void}
+       */
+      function openImagePreview(imgSrc, filename) {
+        const img = document.createElement("img");
+        img.src = imgSrc;
+        img.alt = filename;
+        img.className = "preview-img";
+        const dl = document.createElement("a");
+        dl.className = "preview-dl";
+        dl.href = imgSrc;
+        dl.download = filename;
+        dl.textContent = "↓ Download";
+        showPreview(img, [dl]);
+      }
+
+      /**
+       * Enlarge the low-geometry vectorization, with a Publish to Robot action.
+       * The modal's publish button stays in sync with the card's button so the
+       * drawing can't be queued twice.
+       * @param {string} svgHtml
+       * @param {unknown[]} lowGeometry
+       * @param {string} filename
+       * @param {HTMLButtonElement} cardPubBtn
+       * @returns {void}
+       */
+      function openVecPreview(svgHtml, lowGeometry, filename, cardPubBtn) {
+        const body = document.createElement("div");
+        body.className = "preview-svg";
+        body.innerHTML = svgHtml;
+
+        const pub = document.createElement("button");
+        pub.className = "publish-btn";
+        if (cardPubBtn && cardPubBtn.classList.contains("published")) {
+          pub.classList.add("published");
+          pub.textContent = cardPubBtn.textContent;
+          pub.disabled = true;
+        } else {
+          pub.textContent = "Publish to Robot";
+          pub.onclick = async () => {
+            await publishToRobot(pub, lowGeometry, filename);
+            if (pub.classList.contains("published") && cardPubBtn) {
+              cardPubBtn.classList.add("published");
+              cardPubBtn.disabled = true;
+              cardPubBtn.textContent = pub.textContent;
+            }
+          };
+        }
+        showPreview(body, [pub]);
       }
 
       /** @returns {Promise<void>} */
