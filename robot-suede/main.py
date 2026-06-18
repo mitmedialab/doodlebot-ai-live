@@ -23,6 +23,8 @@ import requests
 HOST = "127.0.0.1"
 PORT = 5000
 
+robot = None
+
 
 def send(msg):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -136,8 +138,10 @@ class DetectedMarker:
 
 
 def setup_aruco_client(robot_name, marker_map, marker_size_m):
+    global robot
+    robot = robot_name
     requests.post(
-        "http://127.0.0.1:8001/aruco/setup",
+        f"http://{robot_name}.direct.mitlivinglab.org:8001",
         json={
             "robot_name": robot_name,
             "marker_map": marker_map,
@@ -147,7 +151,9 @@ def setup_aruco_client(robot_name, marker_map, marker_size_m):
 
 
 def estimate_pose() -> Pose:
-    resp = requests.get("http://127.0.0.1:8001/aruco/position", timeout=1.0)
+    resp = requests.get(
+        f"http://{robot}.direct.mitlivinglab.org:8001/aruco/position", timeout=1.0
+    )
     data = resp.json()
 
     print(data)
