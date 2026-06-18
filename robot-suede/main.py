@@ -140,7 +140,7 @@ class DetectedMarker:
 def setup_aruco_client(robot_name, marker_map, marker_size_m):
     global robot
     robot = robot_name
-    print("SETTING UP ARUCO")
+    print("SETTING UP ARUCO", robot_name)
     response = requests.post(
         f"http://{robot_name}.direct.mitlivinglab.org:8001",
         json={
