@@ -286,7 +286,7 @@ class ServerClient:
 
 def locate(client: ServerClient) -> Pose:
     """Locate self via aruco code detection (README: ``Locate``)."""
-    markers = client.fetch_markers()
+    # markers = client.fetch_markers()
     # return estimate_pose(markers)
     return estimate_pose()
 
@@ -317,17 +317,17 @@ def run(config: Config) -> None:
 
 if __name__ == "__main__":
     marker_map = {"0": [0.0, 0.0, 0.0]}
-    setup_aruco_client("profiterole", marker_map, 0.10)
+    setup_aruco_client("profiterole", marker_map, 10)
 
-    estimate_pose()
+    # estimate_pose()
 
-    # import argparse
+    import argparse
 
-    # parser = argparse.ArgumentParser(description="Doodlebot client")
-    # parser.add_argument("--name", required=True, help="this bot's unique name")
-    # parser.add_argument(
-    #     "--server", default="https://doodlebot.media.mit.edu", help="server base URL"
-    # )
-    # args = parser.parse_args()
+    parser = argparse.ArgumentParser(description="Doodlebot client")
+    parser.add_argument("--name", required=True, help="this bot's unique name")
+    parser.add_argument(
+        "--server", default="https://doodlebot.media.mit.edu", help="server base URL"
+    )
+    args = parser.parse_args()
 
-    # run(Config(name=args.name, server_url=args.server))
+    run(Config(name=args.name, server_url=args.server))
