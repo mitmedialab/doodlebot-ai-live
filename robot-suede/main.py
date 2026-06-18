@@ -149,7 +149,8 @@ def setup_aruco_client(robot_name, marker_map, marker_size_m):
             "marker_size_m": marker_size_m,
         },
     )
-    print(response)
+    print("Status:", response.status_code)
+    print("Text:", response.text)
 
 
 def estimate_pose() -> Pose:
