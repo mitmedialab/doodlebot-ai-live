@@ -616,67 +616,59 @@
         cursor: not-allowed;
       }
 
-      /* ── Vectorize modal overlay ── */
-      .vec-overlay {
-        position: fixed;
-        inset: 0;
-        z-index: 9999;
-        background: rgba(0, 0, 0, 0.88);
+      /* ── Eager vectorization (inline in each result card) ── */
+      .vec-area {
+        margin-top: 0.35rem;
+      }
+      .vec-status {
         display: flex;
         align-items: center;
-        justify-content: center;
-      }
-      .vec-modal {
-        position: relative;
-        background: #0e0e0c;
-        border: 1px solid #2a2a2a;
-        padding: 1.5rem;
-        max-width: 90vw;
-        max-height: 90vh;
-        overflow: auto;
-      }
-      .vec-close {
-        position: absolute;
-        top: 0.5rem;
-        right: 0.7rem;
-        background: none;
-        border: none;
-        color: #666;
-        font-size: 1.4rem;
-        cursor: pointer;
-        line-height: 1;
-      }
-      .vec-close:hover {
-        color: #f5f0e8;
-      }
-      #vecSvgContainer {
-        margin-bottom: 1rem;
-      }
-      #vecSvgContainer svg {
-        width: 100%;
-        height: auto;
-      }
-      .vec-downloads {
-        display: flex;
-        gap: 0.5rem;
-      }
-      .vec-downloads a {
-        flex: 1;
         font-family: "DM Mono", monospace;
         font-size: 0.55rem;
-        color: #5a9e5a;
-        text-decoration: none;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        border: 1px solid #5a9e5a;
-        padding: 0.3rem 0.5rem;
+        color: #888;
+        padding: 0.3rem 0;
+      }
+      .vec-svg {
+        background: #fff;
+        border: 1px solid #2a2a2a;
+        padding: 0.25rem;
+      }
+      .vec-svg svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      .publish-btn {
+        display: block;
+        width: 100%;
+        margin-top: 0.25rem;
+        font-family: "DM Mono", monospace;
+        font-size: 0.55rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1px solid #d4a843;
+        background: transparent;
+        color: #d4a843;
+        padding: 0.3rem 0.4rem;
         text-align: center;
+        cursor: pointer;
         transition: all 0.15s;
       }
-      .vec-downloads a:hover {
-        background: #5a9e5a;
+      .publish-btn:hover {
+        background: #d4a843;
         color: #0e0e0c;
       }
+      .publish-btn:disabled {
+        cursor: default;
+      }
+      .publish-btn.published {
+        border-color: #2d7d46;
+        color: #2d7d46;
+        opacity: 1;
+      }
+
     </style>
   </head>
   <body>
@@ -826,20 +818,6 @@
           <span id="liveDot" class="off"></span>
           <span id="statusText">connecting…</span>
         </div>
-      </div>
-    </div>
-
-    <!-- Vectorize modal -->
-    <div
-      id="vecOverlay"
-      class="vec-overlay"
-      style="display: none"
-      onclick="closeVecModal(event)"
-    >
-      <div class="vec-modal" onclick="event.stopPropagation()">
-        <button class="vec-close" onclick="closeVecModal()">&times;</button>
-        <div id="vecSvgContainer"></div>
-        <div id="vecDownloads" class="vec-downloads"></div>
       </div>
     </div>
 
@@ -1322,35 +1300,7 @@
             const list = document.getElementById("resultsList");
             list.innerHTML = "";
             data.results.forEach((/** @type {CombineResult} */ r) => {
-              const card = document.createElement("div");
-              card.className = "result-card";
-              const label = document.createElement("div");
-              label.className = "result-label";
-              label.textContent = r.model_label;
-              card.appendChild(label);
-              if (r.error) {
-                const err = document.createElement("div");
-                err.className = "result-error";
-                err.textContent = r.error;
-                card.appendChild(err);
-              } else {
-                const img = document.createElement("img");
-                img.src = r.image;
-                img.alt = r.model_label;
-                const dl = document.createElement("a");
-                dl.href = r.image;
-                dl.download = r.saved_as || "combined.png";
-                dl.textContent = "↓ Download";
-                card.appendChild(img);
-                card.appendChild(dl);
-                const vecBtn = document.createElement("button");
-                vecBtn.className = "vectorize-btn";
-                vecBtn.textContent = "Vectorize";
-                vecBtn.onclick = () =>
-                  vectorizeImage(vecBtn, r.image, r.saved_as || "combined.png");
-                card.appendChild(vecBtn);
-              }
-              list.appendChild(card);
+              list.appendChild(buildResultCard(r));
             });
             refreshPresets();
           } else {
@@ -1438,35 +1388,7 @@
             }
 
             data.results.forEach((/** @type {CombineResult} */ r) => {
-              const card = document.createElement("div");
-              card.className = "result-card";
-              const label = document.createElement("div");
-              label.className = "result-label";
-              label.textContent = r.model_label;
-              card.appendChild(label);
-              if (r.error) {
-                const err = document.createElement("div");
-                err.className = "result-error";
-                err.textContent = r.error;
-                card.appendChild(err);
-              } else {
-                const img = document.createElement("img");
-                img.src = r.image;
-                img.alt = r.model_label;
-                const dl = document.createElement("a");
-                dl.href = r.image;
-                dl.download = r.saved_as || "combined.png";
-                dl.textContent = "↓ Download";
-                card.appendChild(img);
-                card.appendChild(dl);
-                const vecBtn = document.createElement("button");
-                vecBtn.className = "vectorize-btn";
-                vecBtn.textContent = "Vectorize";
-                vecBtn.onclick = () =>
-                  vectorizeImage(vecBtn, r.image, r.saved_as || "combined.png");
-                card.appendChild(vecBtn);
-              }
-              list.appendChild(card);
+              list.appendChild(buildResultCard(r));
             });
           } else {
             alert("Error: " + (data.error || "unknown"));
@@ -1480,109 +1402,171 @@
         }
       }
 
-      // ── Vectorize ────────────────────────────────────────────────────────────────
+      // ── Result card + eager vectorize → publish ─────────────────────────────────
       /**
-       * @param {HTMLButtonElement} btn
+       * Build a combine-result card. On success it shows the image and then
+       * *eagerly* kicks off vectorization (no button click needed); once that
+       * returns, the low-geometry SVG and a "Publish to Robot" button appear.
+       * @param {CombineResult} r
+       * @returns {HTMLDivElement}
+       */
+      function buildResultCard(r) {
+        const card = document.createElement("div");
+        card.className = "result-card";
+        const label = document.createElement("div");
+        label.className = "result-label";
+        label.textContent = r.model_label;
+        card.appendChild(label);
+
+        if (r.error) {
+          const err = document.createElement("div");
+          err.className = "result-error";
+          err.textContent = r.error;
+          card.appendChild(err);
+          return card;
+        }
+
+        const img = document.createElement("img");
+        img.src = r.image;
+        img.alt = r.model_label;
+        const dl = document.createElement("a");
+        dl.href = r.image;
+        dl.download = r.saved_as || "combined.png";
+        dl.textContent = "↓ Download";
+        card.appendChild(img);
+        card.appendChild(dl);
+
+        // Eager vectorization: start as soon as the card is built.
+        const vecArea = document.createElement("div");
+        vecArea.className = "vec-area";
+        card.appendChild(vecArea);
+        startVectorization(vecArea, r.image, r.saved_as || "combined.png");
+
+        return card;
+      }
+
+      /**
+       * Vectorize the combined image, showing a spinner while it runs, then
+       * render the low-geometry result + publish button (or an error + retry).
+       * @param {HTMLElement} area
        * @param {string} imgSrc
        * @param {string} filename
        * @returns {Promise<void>}
        */
-      async function vectorizeImage(btn, imgSrc, filename) {
-        // If already vectorized, reopen modal from cache
-        if (btn._vecData) {
-          showVecModal(btn._vecData, btn._vecFilename);
-          return;
-        }
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner"></span>Vectorizing…';
+      async function startVectorization(area, imgSrc, filename) {
+        area.innerHTML =
+          '<div class="vec-status"><span class="spinner"></span>Vectorizing…</div>';
         try {
-          // Convert base64 data URL to Blob
           const resp = await fetch(imgSrc);
           const blob = await resp.blob();
           const form = new FormData();
           form.append("image_file", blob, filename);
 
-          const res = await fetch(
-            "https://doodlebot.media.mit.edu/live/vectorize",
-            {
-              method: "POST",
-              body: form,
-            },
-          );
+          const res = await fetch(`${host}/vectorize`, {
+            method: "POST",
+            body: form,
+          });
           if (!res.ok) {
             const text = await res.text();
-            alert("Vectorize error: " + text.slice(0, 200));
-            btn.disabled = false;
-            btn.textContent = "Vectorize";
+            showVecError(area, imgSrc, filename, text.slice(0, 200));
             return;
           }
-          const data = await res.json();
-          btn._vecData = data;
-          btn._vecFilename = filename;
-          showVecModal(data, filename);
-          btn.disabled = false;
-          btn.textContent = "Vectorized";
-          btn.style.borderColor = "#2d7d46";
-          btn.style.color = "#2d7d46";
+          renderVectorResult(area, await res.json(), filename);
         } catch (e) {
-          alert("Vectorize error: " + e);
-          btn.disabled = false;
-          btn.textContent = "Vectorize";
+          showVecError(area, imgSrc, filename, String(e));
         }
       }
 
       /**
-       * @param {{ svg: string, low_geometry: unknown, high_geometry: unknown }} data
+       * @param {HTMLElement} area
+       * @param {{ low_geometry: unknown[], low_geometry_svg?: string, svg: string }} data
        * @param {string} filename
        * @returns {void}
        */
-      function showVecModal(data, filename) {
-        const container = document.getElementById("vecSvgContainer");
-        const downloads = document.getElementById("vecDownloads");
-        container.innerHTML = data.svg;
-        downloads.innerHTML = "";
+      function renderVectorResult(area, data, filename) {
+        area.innerHTML = "";
 
-        const base = filename.replace(/\.png$/i, "");
+        const svgWrap = document.createElement("div");
+        svgWrap.className = "vec-svg";
+        // Show only the low-geometry rendering (the commands we publish).
+        svgWrap.innerHTML = data.low_geometry_svg || data.svg;
+        area.appendChild(svgWrap);
 
-        // SVG download
-        const svgBlob = new Blob([data.svg], { type: "image/svg+xml" });
-        const svgLink = document.createElement("a");
-        svgLink.href = URL.createObjectURL(svgBlob);
-        svgLink.download = base + "_vector.svg";
-        svgLink.textContent = "SVG";
-        downloads.appendChild(svgLink);
-
-        // Low geometry JSON
-        const lowBlob = new Blob([JSON.stringify(data.low_geometry, null, 2)], {
-          type: "application/json",
-        });
-        const lowLink = document.createElement("a");
-        lowLink.href = URL.createObjectURL(lowBlob);
-        lowLink.download = base + "_low_geo.json";
-        lowLink.textContent = "Low Geo";
-        downloads.appendChild(lowLink);
-
-        // High geometry JSON
-        const highBlob = new Blob(
-          [JSON.stringify(data.high_geometry, null, 2)],
-          { type: "application/json" },
-        );
-        const highLink = document.createElement("a");
-        highLink.href = URL.createObjectURL(highBlob);
-        highLink.download = base + "_high_geo.json";
-        highLink.textContent = "High Geo";
-        downloads.appendChild(highLink);
-
-        document.getElementById("vecOverlay").style.display = "flex";
+        const pubBtn = document.createElement("button");
+        pubBtn.className = "publish-btn";
+        pubBtn.textContent = "Publish to Robot";
+        pubBtn.onclick = () =>
+          publishToRobot(pubBtn, data.low_geometry, filename);
+        area.appendChild(pubBtn);
       }
 
       /**
-       * @param {Event} [e]
+       * @param {HTMLElement} area
+       * @param {string} imgSrc
+       * @param {string} filename
+       * @param {string} msg
        * @returns {void}
        */
-      function closeVecModal(e) {
-        if (e && e.target !== document.getElementById("vecOverlay")) return;
-        document.getElementById("vecOverlay").style.display = "none";
+      function showVecError(area, imgSrc, filename, msg) {
+        area.innerHTML = "";
+        const err = document.createElement("div");
+        err.className = "result-error";
+        err.textContent = "Vectorize failed: " + msg;
+        area.appendChild(err);
+        const retry = document.createElement("button");
+        retry.className = "vectorize-btn";
+        retry.textContent = "Retry vectorize";
+        retry.onclick = () => startVectorization(area, imgSrc, filename);
+        area.appendChild(retry);
+      }
+
+      /**
+       * Enqueue the low-geometry commands for a robot to draw (the coordinator
+       * picks which ready bot). Hits the `post_job` endpoint in robots.py.
+       * @param {HTMLButtonElement} btn
+       * @param {unknown[]} lowGeometry
+       * @param {string} filename
+       * @returns {Promise<void>}
+       */
+      async function publishToRobot(btn, lowGeometry, filename) {
+        if (!tok()) {
+          alert("Enter admin token");
+          return;
+        }
+        if (!lowGeometry || lowGeometry.length === 0) {
+          alert("No vectorization commands to publish");
+          return;
+        }
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>Publishing…';
+        try {
+          const res = await fetch(`${host}/api/robots/jobs`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Admin-Token": tok(),
+            },
+            body: JSON.stringify({
+              commands: lowGeometry,
+              sourceFilename: filename,
+            }),
+          });
+          if (!res.ok) {
+            const text = await res.text();
+            alert("Publish failed: " + text.slice(0, 200));
+            btn.disabled = false;
+            btn.textContent = "Publish to Robot";
+            return;
+          }
+          const job = await res.json();
+          btn.classList.add("published");
+          btn.textContent = "✓ Published" + (job.jobId ? " · " + job.jobId : "");
+          // stays disabled to avoid accidentally queuing the same drawing twice
+        } catch (e) {
+          alert("Publish error: " + e);
+          btn.disabled = false;
+          btn.textContent = "Publish to Robot";
+        }
       }
 
       /** @returns {Promise<void>} */
