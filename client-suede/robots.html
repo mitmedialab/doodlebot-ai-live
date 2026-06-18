@@ -385,6 +385,8 @@
           <span class="count" id="poolCount"></span>
           <span class="hdr-space"></span>
           <span class="count" id="queueCount"></span>
+          <button class="ghost tiny" onclick="toggleQueue()">Inspect queue</button>
+          <button class="ghost tiny" onclick="clearQueue()">Clear queue</button>
         </h2>
         <table>
           <thead>
@@ -405,6 +407,7 @@
             </tr>
           </tbody>
         </table>
+        <div id="queueList" style="display: none; margin-top: 0.8rem"></div>
       </section>
 
       <!-- ── Canvas visualizer ──────────────────────────────────────── -->
@@ -644,6 +647,83 @@
             </tr>`;
           })
           .join("");
+      }
+
+      // ── Queued jobs ───────────────────────────────────────────────────────────
+      function queueVisible() {
+        return (
+          document.getElementById("queueList").style.display !== "none"
+        );
+      }
+
+      /** Toggle the queued-jobs list, fetching it when opened. */
+      function toggleQueue() {
+        const el = document.getElementById("queueList");
+        const show = el.style.display === "none";
+        el.style.display = show ? "block" : "none";
+        if (show) refreshQueue();
+      }
+
+      /** @returns {Promise<void>} */
+      async function refreshQueue() {
+        const el = document.getElementById("queueList");
+        try {
+          const res = await fetch(`${host}/api/robots/jobs`, {
+            headers: authHeaders(),
+          });
+          if (!res.ok) {
+            el.innerHTML =
+              '<div class="muted">Could not load queue' +
+              (res.status === 401 ? " — unauthorized." : ".") +
+              "</div>";
+            return;
+          }
+          const data = await res.json();
+          if (!data.jobs.length) {
+            el.innerHTML =
+              '<div class="muted">Queue is empty (no jobs waiting for a bot).</div>';
+            return;
+          }
+          el.innerHTML =
+            `<table><thead><tr><th>Job id</th><th>Source</th><th>Commands</th></tr></thead><tbody>` +
+            data.jobs
+              .map(
+                (j) =>
+                  `<tr><td>${esc(j.jobId)}</td><td>${j.sourceFilename ? esc(j.sourceFilename) : "—"}</td><td>${j.commandCount}</td></tr>`,
+              )
+              .join("") +
+            `</tbody></table>`;
+        } catch (e) {
+          el.innerHTML = '<div class="muted">Network error.</div>';
+        }
+      }
+
+      /** Drop all waiting jobs (staged-on-a-bot jobs are unaffected). */
+      async function clearQueue() {
+        if (!tok()) return setLive("err", "no token");
+        if (
+          !confirm(
+            "Clear all queued drawing jobs?\n\nThis only drops jobs still waiting for a bot — jobs already staged on a robot keep their reserved canvas space.",
+          )
+        )
+          return;
+        try {
+          const res = await fetch(`${host}/api/robots/jobs`, {
+            method: "DELETE",
+            headers: authHeaders(),
+          });
+          if (!res.ok) {
+            alert("Clear failed: " + (await res.text()).slice(0, 160));
+            return;
+          }
+          const data = await res.json();
+          const el = document.getElementById("queueList");
+          el.style.display = "block";
+          el.innerHTML = `<div class="muted">Cleared ${data.cleared} queued job${data.cleared === 1 ? "" : "s"}.</div>`;
+          refreshAll();
+        } catch (e) {
+          alert("Network error: " + e);
+        }
       }
 
       // ── Canvas data + visualizer ──────────────────────────────────────────────
@@ -1032,6 +1112,7 @@
           refreshPool(),
         ]);
         renderCanvasVisuals(canvases || [], (pool && pool.bots) || []);
+        if (queueVisible()) refreshQueue();
       }
 
       setInterval(() => {
