@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional, Union
 import socket
 import math
+import requests
 
 HOST = "127.0.0.1"
 PORT = 5000
@@ -134,9 +135,26 @@ class DetectedMarker:
     corners: list[Point]
 
 
-def estimate_pose(known: list[ArucoMarker]) -> Pose:
-    """Solve for the bot's pose in the global frame from seen vs. known markers."""
-    raise NotImplementedError("pose estimation is not implemented on this stub")
+def setup_aruco_client(robot_name, marker_map, marker_size_m):
+    requests.post(
+        "http://127.0.0.1:8001/aruco/setup",
+        json={
+            "robot_name": robot_name,
+            "marker_map": marker_map,
+            "marker_size_m": marker_size_m,
+        },
+    )
+
+
+def estimate_pose() -> Pose:
+    resp = requests.get("http://127.0.0.1:8001/aruco/position", timeout=1.0)
+    data = resp.json()
+
+    print(data)
+
+    return Pose(
+        x=float(data["x"]), y=float(data["y"]), headingDegrees=float(data["yaw"])
+    )
 
 
 def normalize_angle(a: float) -> float:
@@ -178,6 +196,7 @@ def send_command(cmd: str) -> None:
 
 def execute_commands(commands: list[DrawingCommand]) -> None:
     """Issue line/spin/arc commands to the drive + pen, in order."""
+    currentPen = 1
     for cmd in commands:
         if isinstance(cmd, ArcCommand):
             send_command(f"t,{cmd.radius},{cmd.degrees}")
@@ -262,7 +281,8 @@ class ServerClient:
 def locate(client: ServerClient) -> Pose:
     """Locate self via aruco code detection (README: ``Locate``)."""
     markers = client.fetch_markers()
-    return estimate_pose(markers)
+    # return estimate_pose(markers)
+    return estimate_pose()
 
 
 def run(config: Config) -> None:
@@ -290,11 +310,11 @@ def run(config: Config) -> None:
 
 
 if __name__ == "__main__":
-    execute_commands(
-        [
-            ArcCommand(radius=2, degrees=90),
-        ]
-    )
+    marker_map = {"0": [0.0, 0.0, 0.0]}
+    setup_aruco_client("profiterole", marker_map, 0.10)
+
+    estimate_pose()
+
     # import argparse
 
     # parser = argparse.ArgumentParser(description="Doodlebot client")
