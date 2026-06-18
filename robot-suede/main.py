@@ -141,7 +141,7 @@ def setup_aruco_client(robot_name, marker_map, marker_size_m):
     global robot
     robot = robot_name
     print("SETTING UP ARUCO")
-    requests.post(
+    response = requests.post(
         f"http://{robot_name}.direct.mitlivinglab.org:8001",
         json={
             "robot_name": robot_name,
@@ -149,6 +149,7 @@ def setup_aruco_client(robot_name, marker_map, marker_size_m):
             "marker_size_m": marker_size_m,
         },
     )
+    print(response)
 
 
 def estimate_pose() -> Pose:
