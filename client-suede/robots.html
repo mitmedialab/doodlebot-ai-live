@@ -1,0 +1,1137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Robot Orchestration — Admin</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Mono:wght@300;400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        min-height: 100%;
+        background: #0e0e0c;
+        font-family: "DM Mono", monospace;
+        color: #f5f0e8;
+        font-size: 13px;
+      }
+      a {
+        color: #5a9e5a;
+      }
+
+      /* ── Header ── */
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        gap: 1.2rem;
+        padding: 0 1.2rem;
+        height: 48px;
+        background: #080808;
+        border-bottom: 1px solid #1e1e1e;
+      }
+      header h1 {
+        font-family: "Playfair Display", serif;
+        font-size: 1.2rem;
+        white-space: nowrap;
+      }
+      header h1 em {
+        font-style: italic;
+        color: #d4a843;
+      }
+      .nav {
+        display: flex;
+        gap: 0.8rem;
+        font-size: 0.62rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+      .nav a {
+        color: #666;
+        text-decoration: none;
+      }
+      .nav a:hover {
+        color: #f5f0e8;
+      }
+      .hdr-space {
+        flex: 1;
+      }
+      .token-row {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .token-row label {
+        font-size: 0.58rem;
+        color: #444;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+      .token-row input {
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid #333;
+        color: #f5f0e8;
+        font-family: "DM Mono", monospace;
+        font-size: 0.7rem;
+        padding: 0.15rem 0.3rem;
+        width: 140px;
+      }
+      .live {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.58rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #888;
+      }
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #444;
+      }
+      .dot.ok {
+        background: #2d7d46;
+        box-shadow: 0 0 6px #2d7d46;
+      }
+      .dot.err {
+        background: #b5483d;
+      }
+
+      /* ── Layout ── */
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 1.2rem;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.2rem;
+        align-items: start;
+      }
+      .col-wide {
+        grid-column: 1 / -1;
+      }
+      .panel {
+        background: #121210;
+        border: 1px solid #1e1e1e;
+        padding: 1rem;
+      }
+      .panel h2 {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: #d4a843;
+        margin-bottom: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+      }
+      .panel h2 .count {
+        color: #666;
+        font-weight: 400;
+        letter-spacing: 0.05em;
+      }
+      .muted {
+        color: #666;
+        font-size: 0.62rem;
+      }
+      .hint {
+        color: #555;
+        font-size: 0.58rem;
+        margin-top: 0.3rem;
+        line-height: 1.5;
+      }
+
+      /* ── Buttons ── */
+      button {
+        font-family: "DM Mono", monospace;
+        font-size: 0.6rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1px solid #5a9e5a;
+        background: transparent;
+        color: #5a9e5a;
+        padding: 0.35rem 0.6rem;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      button:hover {
+        background: #5a9e5a;
+        color: #0e0e0c;
+      }
+      button.gold {
+        border-color: #d4a843;
+        color: #d4a843;
+      }
+      button.gold:hover {
+        background: #d4a843;
+        color: #0e0e0c;
+      }
+      button.ghost {
+        border-color: #444;
+        color: #888;
+      }
+      button.ghost:hover {
+        background: #2a2a2a;
+        color: #f5f0e8;
+      }
+      button.tiny {
+        padding: 0.15rem 0.4rem;
+        font-size: 0.55rem;
+      }
+      button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .btn-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.8rem;
+      }
+
+      /* ── Tables ── */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.62rem;
+      }
+      th {
+        text-align: left;
+        color: #555;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 400;
+        padding: 0.3rem 0.4rem;
+        border-bottom: 1px solid #1e1e1e;
+      }
+      td {
+        padding: 0.35rem 0.4rem;
+        border-bottom: 1px solid #161614;
+      }
+      .badge {
+        display: inline-block;
+        padding: 0.1rem 0.4rem;
+        border-radius: 2px;
+        font-size: 0.55rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .s-ready {
+        background: #1c3a26;
+        color: #6cc488;
+      }
+      .s-drawing {
+        background: #16314d;
+        color: #6bb4ec;
+      }
+      .s-locating {
+        background: #3d3416;
+        color: #e0bb55;
+      }
+      .s-stale {
+        background: #2a2a2a;
+        color: #888;
+      }
+
+      /* ── Form fields ── */
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+      }
+      .field label {
+        font-size: 0.55rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #666;
+      }
+      input[type="text"],
+      input[type="number"],
+      select {
+        background: #0c0c0a;
+        border: 1px solid #2a2a2a;
+        color: #f5f0e8;
+        font-family: "DM Mono", monospace;
+        font-size: 0.66rem;
+        padding: 0.3rem 0.4rem;
+        width: 100%;
+      }
+      input:focus,
+      select:focus {
+        outline: none;
+        border-color: #d4a843;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.6rem;
+      }
+      .grid3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 0.5rem;
+      }
+      .row-line {
+        display: grid;
+        gap: 0.4rem;
+        align-items: end;
+        margin-bottom: 0.4rem;
+      }
+      .markers-line {
+        grid-template-columns: 1fr 1fr 1fr 1fr auto;
+      }
+      .regions-line {
+        grid-template-columns: 1fr 1fr 1fr 1fr 1fr auto;
+      }
+      .sub {
+        font-size: 0.58rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #888;
+        margin: 0.9rem 0 0.4rem;
+        border-top: 1px solid #1a1a1a;
+        padding-top: 0.7rem;
+      }
+
+      /* ── Canvas visual ── */
+      .canvas-card {
+        margin-bottom: 1rem;
+      }
+      .canvas-card .cap {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        font-size: 0.62rem;
+        color: #aaa;
+        margin-bottom: 0.4rem;
+      }
+      .canvas-card svg {
+        width: 100%;
+        height: auto;
+        background: #fff;
+        border: 1px solid #2a2a2a;
+        max-height: 420px;
+      }
+      .legend {
+        display: flex;
+        gap: 0.9rem;
+        flex-wrap: wrap;
+        font-size: 0.55rem;
+        color: #777;
+        margin-top: 0.4rem;
+      }
+      .legend span::before {
+        content: "";
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 0.3rem;
+        vertical-align: middle;
+        background: var(--c);
+      }
+      .toast {
+        font-size: 0.6rem;
+        margin-top: 0.6rem;
+        min-height: 1rem;
+      }
+      .toast.ok {
+        color: #6cc488;
+      }
+      .toast.err {
+        color: #d98b80;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Robot <em>Orchestration</em></h1>
+      <nav class="nav">
+        <a href="./gallery">Gallery</a>
+        <a href="./display">Display</a>
+      </nav>
+      <span class="hdr-space"></span>
+      <span class="live"><span id="liveDot" class="dot"></span><span id="liveText">idle</span></span>
+      <label class="live" style="cursor: pointer">
+        <input type="checkbox" id="autoRefresh" checked style="width: auto" />
+        auto
+      </label>
+      <button class="ghost tiny" onclick="refreshAll()">Refresh</button>
+      <div class="token-row">
+        <label>Token</label>
+        <input id="adminToken" placeholder="admin token…" autocomplete="off" />
+      </div>
+    </header>
+
+    <main>
+      <!-- ── Robot pool ──────────────────────────────────────────────── -->
+      <section class="panel col-wide" id="poolPanel">
+        <h2>
+          Robot pool
+          <span class="count" id="poolCount"></span>
+          <span class="hdr-space"></span>
+          <span class="count" id="queueCount"></span>
+          <button class="ghost tiny" onclick="toggleQueue()">Inspect queue</button>
+          <button class="ghost tiny" onclick="clearQueue()">Clear queue</button>
+        </h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Bot</th>
+              <th>Status</th>
+              <th>Canvas · Region</th>
+              <th>Region free</th>
+              <th>Pose (x, y, θ)</th>
+              <th>Idle</th>
+              <th>Last seen</th>
+              <th>Staged job</th>
+            </tr>
+          </thead>
+          <tbody id="poolBody">
+            <tr>
+              <td colspan="8" class="muted">No data yet — enter a token.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div id="queueList" style="display: none; margin-top: 0.8rem"></div>
+      </section>
+
+      <!-- ── Canvas visualizer ──────────────────────────────────────── -->
+      <section class="panel" id="visualPanel">
+        <h2>Canvases <span class="count" id="canvasCount"></span></h2>
+        <div id="canvasVisuals">
+          <div class="muted">No canvases loaded.</div>
+        </div>
+        <div class="legend">
+          <span style="--c: #2d7d46">region fill</span>
+          <span style="--c: #d4a843">aruco marker</span>
+          <span style="--c: #6bb4ec">bot drawing</span>
+          <span style="--c: #6cc488">bot ready</span>
+        </div>
+      </section>
+
+      <!-- ── Canvas configuration ───────────────────────────────────── -->
+      <section class="panel" id="editorPanel">
+        <h2>Configure canvas</h2>
+        <div class="muted" style="margin-bottom: 0.7rem">
+          Register or replace a canvas (id is the key — reusing an id resets its
+          occupancy).
+        </div>
+
+        <div class="field" style="margin-bottom: 0.6rem">
+          <label>Load existing</label>
+          <div style="display: flex; gap: 0.5rem">
+            <select id="loadSelect" style="flex: 1"></select>
+            <button class="ghost tiny" onclick="loadSelected()">Load</button>
+          </div>
+        </div>
+
+        <div class="grid3">
+          <div class="field">
+            <label>Canvas id</label>
+            <input type="text" id="cId" value="main" />
+          </div>
+          <div class="field">
+            <label>Width (mm)</label>
+            <input type="number" id="cW" value="1219.2" step="any" />
+          </div>
+          <div class="field">
+            <label>Height (mm)</label>
+            <input type="number" id="cH" value="2438.4" step="any" />
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="ghost tiny" onclick="setSize(1219.2, 2438.4)">
+            4 × 8 ft
+          </button>
+          <button class="ghost tiny" onclick="setSize(1219.2, 1219.2)">
+            4 × 4 ft
+          </button>
+          <button class="ghost tiny" onclick="setSize(914.4, 1828.8)">
+            3 × 6 ft
+          </button>
+        </div>
+
+        <div class="sub">Placement</div>
+        <div class="grid3">
+          <div class="field">
+            <label>Cell (mm)</label>
+            <input type="number" id="pCell" value="2" step="any" />
+          </div>
+          <div class="field">
+            <label>Pen (mm)</label>
+            <input type="number" id="pPen" value="3" step="any" />
+          </div>
+          <div class="field">
+            <label>Clearance (mm)</label>
+            <input type="number" id="pClear" value="8" step="any" />
+          </div>
+          <div class="field">
+            <label>Search step</label>
+            <input type="number" id="pStep" value="2" step="1" />
+          </div>
+          <div class="field">
+            <label>Angle step (°)</label>
+            <input type="number" id="pAngle" value="15" step="any" />
+          </div>
+          <div class="field">
+            <label>Strategy</label>
+            <select id="pStrategy">
+              <option value="bottom_left">bottom_left (dense)</option>
+              <option value="scatter">scatter (organic)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="sub">Aruco markers</div>
+        <div id="markersList"></div>
+        <button class="ghost tiny" onclick="addMarkerRow()">+ marker</button>
+
+        <div class="sub">Regions (one robot per region)</div>
+        <div id="regionsList"></div>
+        <div class="btn-row">
+          <button class="ghost tiny" onclick="addRegionRow()">+ region</button>
+        </div>
+        <div class="field" style="margin-top: 0.6rem">
+          <label>Auto-grid regions (rows × cols → bot-0, bot-1, …)</label>
+          <div class="grid3">
+            <input type="number" id="gRows" value="4" step="1" min="1" />
+            <input type="number" id="gCols" value="2" step="1" min="1" />
+            <input type="text" id="gPrefix" value="bot-" />
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="ghost tiny" onclick="autoGridRegions()">
+            Generate grid
+          </button>
+        </div>
+
+        <div class="btn-row">
+          <button class="gold" onclick="saveCanvas()">Save canvas</button>
+        </div>
+        <div class="toast" id="editorToast"></div>
+        <div class="hint">
+          Markers and regions use the same global mm frame (x →, y ↓), origin at
+          the canvas's top-left corner.
+        </div>
+      </section>
+
+      <!-- ── Test drawing ───────────────────────────────────────────── -->
+      <section class="panel" id="testPanel">
+        <h2>Enqueue test drawing</h2>
+        <div class="muted" style="margin-bottom: 0.7rem">
+          Queue a simple shape (via <code>/api/robots/jobs</code>) to smoke-test
+          the pipeline — the coordinator picks a ready bot and places it.
+        </div>
+        <div class="field" style="margin-bottom: 0.6rem">
+          <label>Size (mm)</label>
+          <input type="number" id="testSize" value="120" step="any" />
+        </div>
+        <div class="btn-row">
+          <button onclick="enqueueTest('square')">Square</button>
+          <button onclick="enqueueTest('triangle')">Triangle</button>
+          <button onclick="enqueueTest('wave')">Wave (arcs)</button>
+        </div>
+        <div class="toast" id="testToast"></div>
+        <div class="hint">
+          A leading pen-up move is included so the server's lead-in stripping +
+          placement behaves exactly as it does for real vectorizations.
+        </div>
+      </section>
+    </main>
+
+    <script>
+      // ── Host + token (mirrors gallery.html) ────────────────────────────────
+      const MODE = "PROD";
+      const host =
+        MODE === "DEV"
+          ? "http://localhost:5001"
+          : "https://doodlebot.media.mit.edu/live";
+
+      const TOKEN_KEY = "doodlebot_admin_token";
+      const tokenInput = /** @type {HTMLInputElement} */ (
+        document.getElementById("adminToken")
+      );
+      const urlToken = new URLSearchParams(window.location.search).get("token");
+      tokenInput.value = urlToken || localStorage.getItem(TOKEN_KEY) || "";
+      tokenInput.addEventListener("input", () => {
+        localStorage.setItem(TOKEN_KEY, tok());
+        refreshAll();
+      });
+      const tok = () => tokenInput.value.trim();
+      const authHeaders = (extra) =>
+        Object.assign({ "X-Admin-Token": tok() }, extra || {});
+
+      // ── Live status ────────────────────────────────────────────────────────
+      /** @param {"ok"|"err"|"idle"} state @param {string} msg */
+      function setLive(state, msg) {
+        const dot = document.getElementById("liveDot");
+        dot.className = "dot" + (state === "ok" ? " ok" : state === "err" ? " err" : "");
+        document.getElementById("liveText").textContent = msg;
+      }
+
+      // ── Robot pool ───────────────────────────────────────────────────────────
+      /** @returns {Promise<void>} */
+      async function refreshPool() {
+        const body = document.getElementById("poolBody");
+        try {
+          const res = await fetch(`${host}/api/robots`, {
+            headers: authHeaders(),
+          });
+          if (res.status === 401) {
+            setLive("err", "unauthorized");
+            body.innerHTML =
+              '<tr><td colspan="8" class="muted">Unauthorized — check token.</td></tr>';
+            return;
+          }
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          const pool = await res.json();
+          setLive("ok", "live");
+          renderPool(pool);
+          return pool;
+        } catch (e) {
+          setLive("err", "offline");
+          body.innerHTML =
+            '<tr><td colspan="8" class="muted">Could not reach server.</td></tr>';
+        }
+      }
+
+      /** @param {{bots: any[], queuedJobs: number}} pool */
+      function renderPool(pool) {
+        document.getElementById("poolCount").textContent =
+          pool.bots.length + " bot" + (pool.bots.length === 1 ? "" : "s");
+        document.getElementById("queueCount").textContent =
+          pool.queuedJobs + " job" + (pool.queuedJobs === 1 ? "" : "s") + " queued";
+
+        const body = document.getElementById("poolBody");
+        if (!pool.bots.length) {
+          body.innerHTML =
+            '<tr><td colspan="8" class="muted">No bots have checked in yet.</td></tr>';
+          return;
+        }
+        const regionToCanvas = window._regionToCanvas || {};
+        body.innerHTML = pool.bots
+          .map((b) => {
+            const stale = b.secondsSinceSeen > 5;
+            const statusCls = stale ? "s-stale" : "s-" + b.status;
+            const statusTxt = stale ? "offline" : b.status;
+            const canvas = regionToCanvas[b.region] || "—";
+            const free =
+              b.regionFreeFraction == null
+                ? "—"
+                : Math.round(b.regionFreeFraction * 100) + "% free";
+            const pose = `${b.pose.x.toFixed(0)}, ${b.pose.y.toFixed(0)}, ${b.pose.headingDegrees.toFixed(0)}°`;
+            return `<tr>
+              <td>${esc(b.name)}</td>
+              <td><span class="badge ${statusCls}">${statusTxt}</span></td>
+              <td>${canvas}${b.region ? " · " + esc(b.region) : ""}</td>
+              <td>${free}</td>
+              <td>${pose}</td>
+              <td>${b.idleSeconds.toFixed(1)}s</td>
+              <td>${b.secondsSinceSeen.toFixed(1)}s ago</td>
+              <td>${b.stagedJobId ? esc(b.stagedJobId) : "—"}</td>
+            </tr>`;
+          })
+          .join("");
+      }
+
+      // ── Queued jobs ───────────────────────────────────────────────────────────
+      function queueVisible() {
+        return (
+          document.getElementById("queueList").style.display !== "none"
+        );
+      }
+
+      /** Toggle the queued-jobs list, fetching it when opened. */
+      function toggleQueue() {
+        const el = document.getElementById("queueList");
+        const show = el.style.display === "none";
+        el.style.display = show ? "block" : "none";
+        if (show) refreshQueue();
+      }
+
+      /** @returns {Promise<void>} */
+      async function refreshQueue() {
+        const el = document.getElementById("queueList");
+        try {
+          const res = await fetch(`${host}/api/robots/jobs`, {
+            headers: authHeaders(),
+          });
+          if (!res.ok) {
+            el.innerHTML =
+              '<div class="muted">Could not load queue' +
+              (res.status === 401 ? " — unauthorized." : ".") +
+              "</div>";
+            return;
+          }
+          const data = await res.json();
+          if (!data.jobs.length) {
+            el.innerHTML =
+              '<div class="muted">Queue is empty (no jobs waiting for a bot).</div>';
+            return;
+          }
+          el.innerHTML =
+            `<table><thead><tr><th>Job id</th><th>Source</th><th>Commands</th></tr></thead><tbody>` +
+            data.jobs
+              .map(
+                (j) =>
+                  `<tr><td>${esc(j.jobId)}</td><td>${j.sourceFilename ? esc(j.sourceFilename) : "—"}</td><td>${j.commandCount}</td></tr>`,
+              )
+              .join("") +
+            `</tbody></table>`;
+        } catch (e) {
+          el.innerHTML = '<div class="muted">Network error.</div>';
+        }
+      }
+
+      /** Drop all waiting jobs (staged-on-a-bot jobs are unaffected). */
+      async function clearQueue() {
+        if (!tok()) return setLive("err", "no token");
+        if (
+          !confirm(
+            "Clear all queued drawing jobs?\n\nThis only drops jobs still waiting for a bot — jobs already staged on a robot keep their reserved canvas space.",
+          )
+        )
+          return;
+        try {
+          const res = await fetch(`${host}/api/robots/jobs`, {
+            method: "DELETE",
+            headers: authHeaders(),
+          });
+          if (!res.ok) {
+            alert("Clear failed: " + (await res.text()).slice(0, 160));
+            return;
+          }
+          const data = await res.json();
+          const el = document.getElementById("queueList");
+          el.style.display = "block";
+          el.innerHTML = `<div class="muted">Cleared ${data.cleared} queued job${data.cleared === 1 ? "" : "s"}.</div>`;
+          refreshAll();
+        } catch (e) {
+          alert("Network error: " + e);
+        }
+      }
+
+      // ── Canvas data + visualizer ──────────────────────────────────────────────
+      /** @returns {Promise<any[]>} */
+      async function refreshCanvases() {
+        try {
+          const res = await fetch(`${host}/api/robots/canvases`, {
+            headers: authHeaders(),
+          });
+          if (!res.ok) {
+            if (res.status === 401) setLive("err", "unauthorized");
+            return [];
+          }
+          const data = await res.json();
+          const canvases = data.canvases || [];
+          // map region id -> canvas id for the pool table
+          const map = {};
+          canvases.forEach((c) =>
+            (c.regions || []).forEach((r) => (map[r.id] = c.id)),
+          );
+          window._regionToCanvas = map;
+          window._canvases = canvases;
+          renderLoadSelect(canvases);
+          return canvases;
+        } catch (e) {
+          return [];
+        }
+      }
+
+      /** @param {any[]} canvases @param {any[]} bots */
+      function renderCanvasVisuals(canvases, bots) {
+        document.getElementById("canvasCount").textContent =
+          canvases.length + " configured";
+        const host_ = document.getElementById("canvasVisuals");
+        if (!canvases.length) {
+          host_.innerHTML = '<div class="muted">No canvases configured.</div>';
+          return;
+        }
+        host_.innerHTML = canvases
+          .map((c) => canvasCard(c, bots || []))
+          .join("");
+      }
+
+      /** @param {any} c @param {any[]} bots @returns {string} */
+      function canvasCard(c, bots) {
+        const W = c.width,
+          H = c.height;
+        const fs = Math.max(W, H) / 48;
+        const sw = Math.max(W, H) / 500;
+        const free = c.freeFractionByRegion || {};
+        const parts = [
+          `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">`,
+          `<rect x="0" y="0" width="${W}" height="${H}" fill="#fdfdfb" stroke="#999" stroke-width="${sw}"/>`,
+        ];
+        // regions
+        (c.regions || []).forEach((r) => {
+          const f = free[r.id] == null ? 1 : free[r.id];
+          const occ = 1 - f;
+          parts.push(
+            `<rect x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" ` +
+              `fill="rgba(45,125,70,${(occ * 0.6).toFixed(3)})" stroke="#2d7d46" stroke-width="${sw}"/>`,
+          );
+          parts.push(
+            `<text x="${r.x + fs * 0.3}" y="${r.y + fs * 1.2}" font-size="${fs}" font-family="monospace" fill="#1c1c1c">${escSvg(r.id)}${r.robot ? " · " + escSvg(r.robot) : ""}</text>`,
+          );
+          parts.push(
+            `<text x="${r.x + fs * 0.3}" y="${r.y + fs * 2.4}" font-size="${fs * 0.85}" font-family="monospace" fill="#555">${Math.round(occ * 100)}% full</text>`,
+          );
+        });
+        // markers
+        (c.markers || []).forEach((m) => {
+          const mx = m.position.x,
+            my = m.position.y;
+          parts.push(
+            `<circle cx="${mx}" cy="${my}" r="${fs * 0.55}" fill="#d4a843" stroke="#111" stroke-width="${sw}"/>`,
+          );
+          parts.push(
+            `<text x="${mx + fs * 0.7}" y="${my + fs * 0.4}" font-size="${fs * 0.8}" font-family="monospace" fill="#7a5c12">${m.id}</text>`,
+          );
+        });
+        // bots that live on this canvas (matched by region id)
+        const regionIds = new Set((c.regions || []).map((r) => r.id));
+        (bots || [])
+          .filter((b) => b.region && regionIds.has(b.region))
+          .forEach((b) => {
+            const color =
+              b.secondsSinceSeen > 5
+                ? "#888"
+                : b.status === "drawing"
+                  ? "#2f6fb0"
+                  : b.status === "ready"
+                    ? "#2d7d46"
+                    : "#c79a2e";
+            parts.push(
+              `<circle cx="${b.pose.x}" cy="${b.pose.y}" r="${fs * 0.7}" fill="${color}" stroke="#fff" stroke-width="${sw}"/>`,
+            );
+            parts.push(
+              `<text x="${b.pose.x + fs * 0.9}" y="${b.pose.y + fs * 0.4}" font-size="${fs * 0.8}" font-family="monospace" fill="#222">${escSvg(b.name)}</text>`,
+            );
+          });
+        parts.push("</svg>");
+        return `<div class="canvas-card">
+            <div class="cap"><span>${escSvg(c.id)}</span><span>${W.toFixed(0)} × ${H.toFixed(0)} mm · ${(c.regions || []).length} regions</span></div>
+            ${parts.join("")}
+          </div>`;
+      }
+
+      // ── Canvas editor ──────────────────────────────────────────────────────────
+      /** @param {any[]} canvases */
+      function renderLoadSelect(canvases) {
+        const sel = document.getElementById("loadSelect");
+        const cur = sel.value;
+        sel.innerHTML =
+          '<option value="">— select —</option>' +
+          canvases
+            .map((c) => `<option value="${esc(c.id)}">${esc(c.id)}</option>`)
+            .join("");
+        if ([...sel.options].some((o) => o.value === cur)) sel.value = cur;
+      }
+
+      /** @param {number} w @param {number} h */
+      function setSize(w, h) {
+        document.getElementById("cW").value = String(w);
+        document.getElementById("cH").value = String(h);
+      }
+
+      /** @param {{id?:number,x?:number,y?:number,sizeMm?:number}} [m] */
+      function addMarkerRow(m) {
+        m = m || {};
+        const row = document.createElement("div");
+        row.className = "row-line markers-line marker-row";
+        row.innerHTML = `
+          <div class="field"><label>id</label><input type="number" step="1" class="mk-id" value="${m.id ?? ""}"/></div>
+          <div class="field"><label>x (mm)</label><input type="number" step="any" class="mk-x" value="${m.x ?? ""}"/></div>
+          <div class="field"><label>y (mm)</label><input type="number" step="any" class="mk-y" value="${m.y ?? ""}"/></div>
+          <div class="field"><label>size (mm)</label><input type="number" step="any" class="mk-size" value="${m.sizeMm ?? ""}"/></div>
+          <button class="ghost tiny" onclick="this.parentElement.remove()">✕</button>`;
+        document.getElementById("markersList").appendChild(row);
+      }
+
+      /** @param {{id?:string,x?:number,y?:number,width?:number,height?:number,robot?:string}} [r] */
+      function addRegionRow(r) {
+        r = r || {};
+        const row = document.createElement("div");
+        row.className = "row-line regions-line region-row";
+        row.innerHTML = `
+          <div class="field"><label>id</label><input type="text" class="rg-id" value="${r.id ?? ""}"/></div>
+          <div class="field"><label>x</label><input type="number" step="any" class="rg-x" value="${r.x ?? ""}"/></div>
+          <div class="field"><label>y</label><input type="number" step="any" class="rg-y" value="${r.y ?? ""}"/></div>
+          <div class="field"><label>w</label><input type="number" step="any" class="rg-w" value="${r.width ?? ""}"/></div>
+          <div class="field"><label>h</label><input type="number" step="any" class="rg-h" value="${r.height ?? ""}"/></div>
+          <div class="field"><label>robot</label><input type="text" class="rg-robot" value="${r.robot ?? ""}"/></div>
+          <button class="ghost tiny" onclick="this.parentElement.remove()">✕</button>`;
+        // robot input + remove button share the last two columns; fix grid
+        row.style.gridTemplateColumns = "1fr 1fr 1fr 1fr 1fr 1.2fr auto";
+        document.getElementById("regionsList").appendChild(row);
+      }
+
+      /** Generate an evenly-tiled region grid over the current canvas size. */
+      function autoGridRegions() {
+        const W = num("cW"),
+          H = num("cH");
+        const rows = Math.max(1, Math.round(num("gRows")));
+        const cols = Math.max(1, Math.round(num("gCols")));
+        const prefix = document.getElementById("gPrefix").value.trim();
+        if (!W || !H) {
+          editorToast("Set width and height first", false);
+          return;
+        }
+        document.getElementById("regionsList").innerHTML = "";
+        const rw = W / cols,
+          rh = H / rows;
+        let i = 0;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            addRegionRow({
+              id: `r${r}${c}`,
+              x: +(c * rw).toFixed(2),
+              y: +(r * rh).toFixed(2),
+              width: +rw.toFixed(2),
+              height: +rh.toFixed(2),
+              robot: prefix + i,
+            });
+            i++;
+          }
+        }
+        editorToast(`Generated ${rows * cols} regions`, true);
+      }
+
+      /** Populate the editor from a canvas returned by the server. */
+      function loadSelected() {
+        const id = document.getElementById("loadSelect").value;
+        const c = (window._canvases || []).find((x) => x.id === id);
+        if (!c) return;
+        document.getElementById("cId").value = c.id;
+        document.getElementById("cW").value = c.width;
+        document.getElementById("cH").value = c.height;
+        document.getElementById("markersList").innerHTML = "";
+        (c.markers || []).forEach((m) =>
+          addMarkerRow({
+            id: m.id,
+            x: m.position.x,
+            y: m.position.y,
+            sizeMm: m.sizeMm,
+          }),
+        );
+        document.getElementById("regionsList").innerHTML = "";
+        (c.regions || []).forEach((r) => addRegionRow(r));
+        editorToast(`Loaded "${c.id}" (placement defaults apply)`, true);
+      }
+
+      /** @returns {object} CanvasConfig payload for POST /api/robots/canvases */
+      function buildCanvasPayload() {
+        const markers = [...document.querySelectorAll(".marker-row")]
+          .map((row) => {
+            const id = parseInt(row.querySelector(".mk-id").value, 10);
+            const x = parseFloat(row.querySelector(".mk-x").value);
+            const y = parseFloat(row.querySelector(".mk-y").value);
+            const size = parseFloat(row.querySelector(".mk-size").value);
+            if (isNaN(id) || isNaN(x) || isNaN(y)) return null;
+            const m = { id, position: { x, y } };
+            if (!isNaN(size)) m.sizeMm = size;
+            return m;
+          })
+          .filter(Boolean);
+
+        const regions = [...document.querySelectorAll(".region-row")]
+          .map((row) => {
+            const id = row.querySelector(".rg-id").value.trim();
+            const x = parseFloat(row.querySelector(".rg-x").value);
+            const y = parseFloat(row.querySelector(".rg-y").value);
+            const width = parseFloat(row.querySelector(".rg-w").value);
+            const height = parseFloat(row.querySelector(".rg-h").value);
+            const robot = row.querySelector(".rg-robot").value.trim();
+            if (!id || isNaN(x) || isNaN(y) || isNaN(width) || isNaN(height))
+              return null;
+            return { id, x, y, width, height, robot: robot || null };
+          })
+          .filter(Boolean);
+
+        return {
+          id: document.getElementById("cId").value.trim(),
+          width: num("cW"),
+          height: num("cH"),
+          markers,
+          regions,
+          placement: {
+            cellMm: num("pCell"),
+            penMm: num("pPen"),
+            clearanceMm: num("pClear"),
+            searchStepCells: Math.round(num("pStep")),
+            angleStepDeg: num("pAngle"),
+            strategy: document.getElementById("pStrategy").value,
+          },
+        };
+      }
+
+      /** @returns {Promise<void>} */
+      async function saveCanvas() {
+        if (!tok()) return editorToast("Enter admin token", false);
+        const payload = buildCanvasPayload();
+        if (!payload.id) return editorToast("Canvas id is required", false);
+        if (!payload.regions.length)
+          return editorToast("Add at least one region", false);
+        try {
+          const res = await fetch(`${host}/api/robots/canvases`, {
+            method: "POST",
+            headers: authHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const t = await res.text();
+            return editorToast("Save failed: " + t.slice(0, 160), false);
+          }
+          editorToast(
+            `Saved "${payload.id}" — ${payload.regions.length} regions, ${payload.markers.length} markers`,
+            true,
+          );
+          refreshAll();
+        } catch (e) {
+          editorToast("Network error: " + e, false);
+        }
+      }
+
+      // ── Test drawing ──────────────────────────────────────────────────────────
+      /** @param {"square"|"triangle"|"wave"} shape @returns {Promise<void>} */
+      async function enqueueTest(shape) {
+        if (!tok()) return testToast("Enter admin token", false);
+        const s = num("testSize") || 120;
+        const commands = buildTestCommands(shape, s);
+        try {
+          const res = await fetch(`${host}/api/robots/jobs`, {
+            method: "POST",
+            headers: authHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({
+              commands,
+              sourceFilename: `test_${shape}`,
+            }),
+          });
+          if (!res.ok) {
+            const t = await res.text();
+            return testToast("Enqueue failed: " + t.slice(0, 160), false);
+          }
+          const job = await res.json();
+          testToast(`Queued ${shape} — job ${job.jobId || "?"}`, true);
+          refreshPool();
+        } catch (e) {
+          testToast("Network error: " + e, false);
+        }
+      }
+
+      /** @param {string} shape @param {number} s @returns {object[]} */
+      function buildTestCommands(shape, s) {
+        const line = (d, p) => ({ kind: "line", distance: d, penDown: p });
+        const spin = (d) => ({ kind: "spin", degrees: d });
+        const arc = (r, d) => ({ kind: "arc", radius: r, degrees: d });
+        const lead = line(s * 0.3, false); // pen-up lead-in
+        if (shape === "square") {
+          return [
+            lead,
+            line(s, true),
+            spin(90),
+            line(s, true),
+            spin(90),
+            line(s, true),
+            spin(90),
+            line(s, true),
+          ];
+        }
+        if (shape === "triangle") {
+          return [
+            lead,
+            line(s, true),
+            spin(120),
+            line(s, true),
+            spin(120),
+            line(s, true),
+          ];
+        }
+        // wave: a row of alternating arcs
+        const r = s / 4;
+        return [
+          lead,
+          arc(r, 180),
+          arc(r, -180),
+          arc(r, 180),
+          arc(r, -180),
+        ];
+      }
+
+      // ── Helpers ──────────────────────────────────────────────────────────────
+      function num(id) {
+        return parseFloat(
+          /** @type {HTMLInputElement} */ (document.getElementById(id)).value,
+        );
+      }
+      function esc(s) {
+        return String(s).replace(
+          /[&<>"]/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+        );
+      }
+      function escSvg(s) {
+        return esc(s);
+      }
+      function editorToast(msg, ok) {
+        const el = document.getElementById("editorToast");
+        el.className = "toast " + (ok ? "ok" : "err");
+        el.textContent = msg;
+      }
+      function testToast(msg, ok) {
+        const el = document.getElementById("testToast");
+        el.className = "toast " + (ok ? "ok" : "err");
+        el.textContent = msg;
+      }
+
+      // ── Refresh orchestration ──────────────────────────────────────────────────
+      /** @returns {Promise<void>} */
+      async function refreshAll() {
+        if (!tok()) {
+          setLive("idle", "no token");
+          return;
+        }
+        const [canvases, pool] = await Promise.all([
+          refreshCanvases(),
+          refreshPool(),
+        ]);
+        renderCanvasVisuals(canvases || [], (pool && pool.bots) || []);
+        if (queueVisible()) refreshQueue();
+      }
+
+      setInterval(() => {
+        if (
+          /** @type {HTMLInputElement} */ (
+            document.getElementById("autoRefresh")
+          ).checked
+        )
+          refreshAll();
+      }, 2000);
+
+      // seed the editor with a sensible starting layout
+      addMarkerRow({ id: 0, x: 0, y: 0, sizeMm: 100 });
+      addMarkerRow({ id: 1, x: 1219.2, y: 0, sizeMm: 100 });
+      addMarkerRow({ id: 2, x: 1219.2, y: 2438.4, sizeMm: 100 });
+      addMarkerRow({ id: 3, x: 0, y: 2438.4, sizeMm: 100 });
+      addRegionRow({ id: "r00", x: 0, y: 0, width: 609.6, height: 609.6, robot: "bot-0" });
+
+      refreshAll();
+    </script>
+  </body>
+</html>
