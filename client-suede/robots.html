@@ -806,6 +806,7 @@
         });
         (c.drawings || []).forEach((drawing) => {
           (drawing.strokes || []).forEach((stroke) => {
+            console.log(stroke);
             if (stroke.length < 2) return;
 
             const points = stroke
@@ -822,6 +823,7 @@
                 stroke-linejoin="round"
               />
             `);
+            console.log(parts);
           });
         });
         // bots that live on this canvas (matched by region id)
