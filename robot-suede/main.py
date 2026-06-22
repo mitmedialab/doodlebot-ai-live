@@ -161,7 +161,7 @@ def setup_aruco_client(robot_name, marker_map, marker_size_m):
     print("Text:", response.text)
 
 
-def estimate_pose() -> Pose:
+def estimate_pose() -> Pose | None:
     try:
         resp = requests.get(
             f"http://{robot}.direct.mitlivinglab.org:8001/aruco/position", timeout=1.0
@@ -176,9 +176,9 @@ def estimate_pose() -> Pose:
                 y=float(data["y"]),
                 headingDegrees=float(data["yaw"]),
             )
-        return Pose(x=0, y=0, headingDegrees=0)
+        return None
     except Exception as error:
-        return Pose(x=0, y=0, headingDegrees=0)
+        return None
 
 
 def normalize_angle(a: float) -> float:
@@ -302,11 +302,11 @@ class ServerClient:
 # --------------------------------------------------------------------------- #
 
 
-def locate(client: ServerClient) -> Pose:
-    """Locate self via aruco code detection (README: ``Locate``)."""
-    # markers = client.fetch_markers()
-    # return estimate_pose(markers)
-    return estimate_pose()
+# def locate(client: ServerClient) -> Pose:
+#     """Locate self via aruco code detection (README: ``Locate``)."""
+#     # markers = client.fetch_markers()
+#     # return estimate_pose(markers)
+#     return estimate_pose()
 
 
 def run(config: Config) -> None:
@@ -316,7 +316,10 @@ def run(config: Config) -> None:
 
     while True:
         # --- Locate ---------------------------------------------------------
-        pose = locate(client)
+        pose = estimate_pose()
+        while not pose:
+            execute_commands([SpinCommand(degrees=10)])
+            pose = estimate_pose()
 
         # --- Poll -----------------------------------------------------------
         job: Optional[DrawJob] = None
