@@ -810,7 +810,7 @@
             if (stroke.length < 2) return;
 
             const points = stroke
-              .map((p) => `${p.x},${p.y}`)
+              .map((p) => `${p[0]},${p[1]}`)
               .join(" ");
 
             parts.push(`
