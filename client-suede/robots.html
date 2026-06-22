@@ -804,6 +804,26 @@
             `<text x="${mx + fs * 0.7}" y="${my + fs * 0.4}" font-size="${fs * 0.8}" font-family="monospace" fill="#7a5c12">${m.id}</text>`,
           );
         });
+        (c.drawings.strokes || []).forEach((drawing) => {
+          (drawing.strokes || []).forEach((stroke) => {
+            if (stroke.length < 2) return;
+
+            const points = stroke
+              .map((p) => `${p.x},${p.y}`)
+              .join(" ");
+
+            parts.push(`
+              <polyline
+                points="${points}"
+                fill="none"
+                stroke="#000"
+                stroke-width="${sw * 2}"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            `);
+          });
+        });
         // bots that live on this canvas (matched by region id)
         const regionIds = new Set((c.regions || []).map((r) => r.id));
         (bots || [])
