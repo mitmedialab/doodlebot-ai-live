@@ -31,6 +31,14 @@ def send(msg):
         s.connect((HOST, PORT))
         s.sendall(("fromDoodlebotAILive|" + msg + "\n").encode())
 
+        while True:
+            data = s.recv(1024)
+            if not data:
+                raise RuntimeError("Connection closed")
+
+            if b"ms" in data:
+                return
+
 
 # --------------------------------------------------------------------------- #
 # Configuration
