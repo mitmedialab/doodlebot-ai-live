@@ -154,16 +154,23 @@ def setup_aruco_client(robot_name, marker_map, marker_size_m):
 
 
 def estimate_pose() -> Pose:
-    resp = requests.get(
-        f"http://{robot}.direct.mitlivinglab.org:8001/aruco/position", timeout=1.0
-    )
-    data = resp.json()
+    try:
+        resp = requests.get(
+            f"http://{robot}.direct.mitlivinglab.org:8001/aruco/position", timeout=1.0
+        )
+        data = resp.json()
 
-    print(data)
+        print(data)
 
-    return Pose(
-        x=float(data["x"]), y=float(data["y"]), headingDegrees=float(data["yaw"])
-    )
+        if data:
+            return Pose(
+                x=float(data["x"]),
+                y=float(data["y"]),
+                headingDegrees=float(data["yaw"]),
+            )
+        return Pose(x=0, y=0, headingDegrees=0)
+    except Exception as error:
+        return Pose(x=0, y=0, headingDegrees=0)
 
 
 def normalize_angle(a: float) -> float:
