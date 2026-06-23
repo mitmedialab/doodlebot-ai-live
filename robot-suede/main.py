@@ -31,8 +31,13 @@ def send(msg):
         s.connect((HOST, PORT))
         s.sendall(("fromDoodlebotAILive|" + msg + "\n").encode())
 
+        if msg.startswith("u"):
+            time.sleep(0.1)  # 100 ms
+            return
+
         while True:
             data = s.recv(1024)
+
             if not data:
                 raise RuntimeError("Connection closed")
 
@@ -223,10 +228,20 @@ def execute_commands(commands: list[DrawingCommand]) -> None:
     currentPen = 1
     for cmd in commands:
         if isinstance(cmd, ArcCommand):
+            if currentPen is 0:
+                send_command(f"u,45")
+                currentPen = 1
             send_command(f"t,{cmd.radius},{cmd.degrees}")
 
         elif isinstance(cmd, LineCommand):
-            pen = 1 if cmd.penDown else 0
+            if cmd.penDown:
+                if currentPen is 0:
+                    send_command(f"u,45")
+                    currentPen = 1
+            else:
+                if currentPen is 1:
+                    send_command(f"u,0")
+                    currentPen = 1
             send_command(f"m,{round(cmd.distance)},{round(cmd.distance)},2000,2000")
 
         elif isinstance(cmd, SpinCommand):
