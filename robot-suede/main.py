@@ -31,10 +31,6 @@ def send(msg):
         s.connect((HOST, PORT))
         s.sendall(("fromDoodlebotAILive|" + msg + "\n").encode())
 
-        if msg.startswith("u"):
-            time.sleep(0.5)  # 100 ms
-            return
-
         while True:
             data = s.recv(1024)
 
