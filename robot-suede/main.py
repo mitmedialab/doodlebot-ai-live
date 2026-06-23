@@ -228,18 +228,18 @@ def execute_commands(commands: list[DrawingCommand]) -> None:
     currentPen = 1
     for cmd in commands:
         if isinstance(cmd, ArcCommand):
-            if currentPen is 0:
+            if currentPen == 0:
                 send_command(f"u,45")
                 currentPen = 1
             send_command(f"t,{cmd.radius},{cmd.degrees}")
 
         elif isinstance(cmd, LineCommand):
             if cmd.penDown:
-                if currentPen is 0:
+                if currentPen == 0:
                     send_command(f"u,45")
                     currentPen = 1
             else:
-                if currentPen is 1:
+                if currentPen == 1:
                     send_command(f"u,0")
                     currentPen = 1
             send_command(f"m,{round(cmd.distance)},{round(cmd.distance)},2000,2000")
