@@ -32,7 +32,7 @@ def send(msg):
         s.sendall(("fromDoodlebotAILive|" + msg + "\n").encode())
 
         if msg.startswith("u"):
-            time.sleep(0.1)  # 100 ms
+            time.sleep(0.5)  # 100 ms
             return
 
         while True:
