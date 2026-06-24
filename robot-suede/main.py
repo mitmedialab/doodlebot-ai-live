@@ -219,6 +219,9 @@ def send_command(cmd: str) -> None:
     send(cmd)
 
 
+CM_TO_STEPS = 7.16 * 16
+
+
 def execute_commands(commands: list[DrawingCommand]) -> None:
     """Issue line/spin/arc commands to the drive + pen, in order."""
     currentPen = 1
@@ -238,7 +241,9 @@ def execute_commands(commands: list[DrawingCommand]) -> None:
                 if currentPen == 1:
                     send_command(f"u,0")
                     currentPen = 1
-            send_command(f"m,{round(cmd.distance)},{round(cmd.distance)},2000,2000")
+            distanceCm = cmd.distance * 100
+            steps = distanceCm * CM_TO_STEPS
+            send_command(f"m,{round(steps)},{round(steps)},2000,2000")
 
         elif isinstance(cmd, SpinCommand):
             send_command(f"t,0,{cmd.degrees}")
