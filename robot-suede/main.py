@@ -349,7 +349,7 @@ def run(config: Config) -> None:
 
 if __name__ == "__main__":
     marker_map = {"0": [0.0, 0.0, 0.0]}
-    setup_aruco_client("profiterole", marker_map, 10)
+    setup_aruco_client("profiterole", marker_map, 0.08)
 
     send_command(f"u,45")
     send_command(f"u,0")
