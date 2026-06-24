@@ -241,7 +241,9 @@ def execute_commands(commands: list[DrawingCommand]) -> None:
                 if currentPen == 1:
                     send_command(f"u,0")
                     currentPen = 1
-            distanceCm = cmd.distance * 100
+            print("before")
+            print(cmd.distance)
+            distanceCm = cmd.distance / 100
             steps = distanceCm * CM_TO_STEPS
             send_command(f"m,{round(steps)},{round(steps)},2000,2000")
 
