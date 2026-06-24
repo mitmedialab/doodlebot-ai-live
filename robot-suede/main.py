@@ -207,8 +207,10 @@ def navigate_to(target: Pose, current: Pose) -> None:
         radius=0,
         degrees=math.degrees(turn),  # convert radians → degrees for Arduino protocol
     )
+    distanceCm = distance / 100
+    steps = distanceCm * CM_TO_STEPS
 
-    line_cmd = LineCommand(distance=distance, penDown=False)
+    line_cmd = LineCommand(distance=steps, penDown=False)
 
     # Execute through your existing pipeline
     execute_commands([arc_cmd, line_cmd])
