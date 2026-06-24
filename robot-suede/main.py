@@ -240,7 +240,7 @@ def execute_commands(commands: list[DrawingCommand]) -> None:
             else:
                 if currentPen == 1:
                     send_command(f"u,0")
-                    currentPen = 1
+                    currentPen = 0
             print("before")
             print(cmd.distance)
             distanceCm = cmd.distance / 100
@@ -355,7 +355,7 @@ def run(config: Config) -> None:
 
 
 if __name__ == "__main__":
-    marker_map = {"0": [0.0, 0.0, 0.0]}
+    marker_map = {"0": [0.0, 0.0, math.pi / 2]}
 
     import argparse
 
