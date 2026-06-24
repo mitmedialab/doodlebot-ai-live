@@ -349,7 +349,6 @@ def run(config: Config) -> None:
 
 if __name__ == "__main__":
     marker_map = {"0": [0.0, 0.0, 0.0]}
-    setup_aruco_client("profiterole", marker_map, 0.08)
 
     import argparse
 
@@ -359,5 +358,6 @@ if __name__ == "__main__":
         "--server", default="https://doodlebot.media.mit.edu", help="server base URL"
     )
     args = parser.parse_args()
+    setup_aruco_client(args.name, marker_map, 0.08)
 
     run(Config(name=args.name, server_url=args.server))
