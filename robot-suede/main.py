@@ -228,7 +228,7 @@ def navigate_to(target: Pose, current: Pose) -> None:
         radius=0,
         degrees=math.degrees(turn),  # convert radians → degrees for Arduino protocol
     )
-    distanceCm = distance / 100
+    distanceCm = distance / 10
     steps = distanceCm * CM_TO_STEPS
 
     line_cmd = LineCommand(distance=steps, penDown=False)
@@ -266,7 +266,7 @@ def execute_commands(commands: list[DrawingCommand]) -> None:
                     currentPen = 0
             print("before")
             print(cmd.distance)
-            distanceCm = cmd.distance / 100
+            distanceCm = cmd.distance / 10
             steps = distanceCm * CM_TO_STEPS
             send_command(f"m,{round(steps)},{round(steps)},2000,2000")
 
