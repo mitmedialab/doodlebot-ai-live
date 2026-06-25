@@ -190,6 +190,7 @@ def estimate_pose() -> Pose | None:
         print(data)
 
         canvas_position = get_robot_canvas_position(data)
+        print(canvas_position)
 
         if data:
             return Pose(
