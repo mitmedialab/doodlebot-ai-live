@@ -193,6 +193,7 @@ def estimate_pose() -> Pose | None:
         if data:
             canvas_position = get_robot_canvas_position(data)
             print(canvas_position)
+            print(marker_map[data.marker_id]["yaw"])
 
             adjacent = data["z"] * math.cos(marker_map[data.marker_id]["yaw"])
             opposite = data["z"] * math.sin(marker_map[data.marker_id]["yaw"])
