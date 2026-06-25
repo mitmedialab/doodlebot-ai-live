@@ -19,6 +19,7 @@ from typing import Literal, Optional, Union
 import socket
 import math
 import requests
+import numpy as np
 
 HOST = "127.0.0.1"
 PORT = 5000
@@ -162,6 +163,23 @@ def setup_aruco_client(robot_name, marker_map, marker_size_m):
     print("Text:", response.text)
 
 
+def get_robot_canvas_position(pose: dict) -> dict[str, float]:
+    """
+    Returns (canvas_x, canvas_y) in cm.
+
+    x = lateral position along the marker face
+    y = distance along the canvas away from the marker
+        (projected onto ground plane, ignoring camera height)
+    """
+    # x/z are the ground-plane axes; y is vertical (camera mount height)
+    camera_height = pose["y"]  # vertical offset — use to correct ground projection
+
+    canvas_x = pose["x"] * 100  # lateral, cm
+    canvas_y = np.sqrt(pose["z"] ** 2 - pose["y"] ** 2) * 100  # ground-plane depth, cm
+
+    return {"x": canvas_x, "y": canvas_y}
+
+
 def estimate_pose() -> Pose | None:
     try:
         resp = requests.get(
@@ -171,10 +189,12 @@ def estimate_pose() -> Pose | None:
 
         print(data)
 
+        canvas_position = get_robot_canvas_position(data)
+
         if data:
             return Pose(
-                x=float(data["x"]),
-                y=float(data["y"]),
+                x=float(canvas_position["x"]),
+                y=float(canvas_position["y"]),
                 headingDegrees=float(data["yaw"]),
             )
         return None
