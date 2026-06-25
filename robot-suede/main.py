@@ -174,8 +174,8 @@ def get_robot_canvas_position(pose: dict) -> dict[str, float]:
     # x/z are the ground-plane axes; y is vertical (camera mount height)
     camera_height = pose["y"]  # vertical offset — use to correct ground projection
 
-    canvas_x = pose["x"] * 100  # lateral, cm
-    canvas_y = np.sqrt(pose["z"] ** 2 - pose["y"] ** 2) * 100  # ground-plane depth, cm
+    canvas_x = pose["x"] * 1000  # lateral, cm
+    canvas_y = np.sqrt(pose["z"] ** 2 - pose["y"] ** 2) * 1000  # ground-plane depth, cm
 
     return {"x": canvas_x, "y": canvas_y}
 
