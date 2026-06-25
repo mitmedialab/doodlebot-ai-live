@@ -357,7 +357,7 @@ def run(config: Config) -> None:
 
 
 if __name__ == "__main__":
-    marker_map = {"0": [0.0, 0.0, -1 * math.pi / 2]}
+    marker_map = {"0": {"x": 0.0, "y": 0.0, "z": 0.0, "yaw": -math.pi / 2}}
 
     import argparse
 
