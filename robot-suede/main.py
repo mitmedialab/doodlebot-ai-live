@@ -192,6 +192,7 @@ def estimate_pose() -> Pose | None:
         canvas_position = get_robot_canvas_position(data)
         print(canvas_position)
 
+        print(float(data["yaw"] * 180 / math.pi))
         if data:
             return Pose(
                 x=float(canvas_position["x"]),
