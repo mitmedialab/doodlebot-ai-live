@@ -25,6 +25,7 @@ HOST = "127.0.0.1"
 PORT = 5000
 
 robot = None
+marker_map = {"0": {"x": 0.0, "y": 0.0, "z": 0.0, "yaw": math.pi / 4}}
 
 
 def send(msg):
@@ -192,11 +193,14 @@ def estimate_pose() -> Pose | None:
         canvas_position = get_robot_canvas_position(data)
         print(canvas_position)
 
+        adjacent = data["z"] * math.cos(marker_map[data.marker_id]["yaw"])
+        opposite = data["z"] * math.sin(marker_map[data.marker_id]["yaw"])
+
         print(float(data["yaw"] * 180 / math.pi))
         if data:
             return Pose(
-                x=float(canvas_position["x"]),
-                y=float(canvas_position["y"]),
+                x=float(adjacent),
+                y=float(opposite),
                 headingDegrees=float(data["yaw"] * 180 / math.pi),
             )
         return None
@@ -380,7 +384,6 @@ def run(config: Config) -> None:
 
 
 if __name__ == "__main__":
-    marker_map = {"0": {"x": 0.0, "y": 0.0, "z": 0.0, "yaw": math.pi / 4}}
 
     import argparse
 
