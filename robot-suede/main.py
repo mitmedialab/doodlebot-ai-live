@@ -197,6 +197,8 @@ def estimate_pose() -> Pose | None:
         opposite = data["z"] * math.sin(marker_map[data.marker_id]["yaw"])
 
         print(float(data["yaw"] * 180 / math.pi))
+        print(adjacent)
+        print(opposite)
         if data:
             return Pose(
                 x=float(adjacent),
