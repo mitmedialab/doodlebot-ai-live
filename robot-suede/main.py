@@ -191,22 +191,22 @@ def estimate_pose() -> Pose | None:
         print(data)
 
         if data:
-            canvas_position = get_robot_canvas_position(data)
-            print(canvas_position)
-            print(marker_map)
-            print(data["marker_id"])
-            print(marker_map[str(data["marker_id"])])
-            print(marker_map[str(data["marker_id"])]["yaw"])
+            # canvas_position = get_robot_canvas_position(data)
+            # print(canvas_position)
+            # print(marker_map)
+            # print(data["marker_id"])
+            # print(marker_map[str(data["marker_id"])])
+            # print(marker_map[str(data["marker_id"])]["yaw"])
 
-            adjacent = data["z"] * math.cos(marker_map[str(data["marker_id"])]["yaw"])
-            opposite = data["z"] * math.sin(marker_map[str(data["marker_id"])]["yaw"])
+            # adjacent = data["z"] * math.cos(marker_map[str(data["marker_id"])]["yaw"])
+            # opposite = data["z"] * math.sin(marker_map[str(data["marker_id"])]["yaw"])
 
-            print(float(data["yaw"] * 180 / math.pi))
-            print(adjacent * 1000)
-            print(opposite * 1000)
+            # print(float(data["yaw"] * 180 / math.pi))
+            # print(adjacent * 1000)
+            # print(opposite * 1000)
             return Pose(
-                x=float(adjacent),
-                y=float(opposite),
+                x=float(data["x"]),
+                y=float(data["y"]),
                 headingDegrees=float(data["yaw"] * 180 / math.pi),
             )
         return None
