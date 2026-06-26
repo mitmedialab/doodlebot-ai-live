@@ -189,6 +189,7 @@ def estimate_pose() -> Pose | None:
         data = resp.json()
 
         print(data)
+        print("angle: ", data["yaw"] * 180 / math.pi)
 
         if data:
             # canvas_position = get_robot_canvas_position(data)
