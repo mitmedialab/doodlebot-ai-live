@@ -369,8 +369,9 @@ def run(config: Config) -> None:
     while True:
         # --- Locate ---------------------------------------------------------
         pose = estimate_pose()
-        while not pose:
-            execute_commands([SpinCommand(degrees=10)])
+        while not pose or pose:
+            if not pose:
+                execute_commands([SpinCommand(degrees=10)])
             pose = estimate_pose()
 
         # --- Poll -----------------------------------------------------------
