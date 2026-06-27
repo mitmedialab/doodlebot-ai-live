@@ -25,7 +25,7 @@ HOST = "127.0.0.1"
 PORT = 5000
 
 robot = None
-marker_map = {"0": {"x": 0.0, "y": 0.0, "z": 0.0, "yaw": math.pi / 4}}
+marker_map = {"0": {"x": 12.0, "y": 11.0, "z": 0.0, "yaw": math.pi / 4}}
 
 
 def send(msg):
@@ -370,9 +370,8 @@ def run(config: Config) -> None:
     while True:
         # --- Locate ---------------------------------------------------------
         pose = estimate_pose()
-        while not pose or pose:
-            if not pose:
-                execute_commands([SpinCommand(degrees=10)])
+        while not pose:
+            execute_commands([SpinCommand(degrees=10)])
             pose = estimate_pose()
 
         # --- Poll -----------------------------------------------------------
