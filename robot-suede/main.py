@@ -172,13 +172,18 @@ def estimate_pose() -> Pose | None:
         data = resp.json()
 
         print(data)
-        print("angle: ", data["yaw"] * 180 / math.pi)
+        angle = float(-1 * data["yaw"] * 180 / math.pi - 90)
+
+        camera_offset_mm = 60.0
+        rad = math.radians(angle)
+        true_x = float(data["x"]) - math.cos(rad) * camera_offset_mm
+        true_y = float(data["y"]) - math.sin(rad) * camera_offset_mm
 
         if data:
             return Pose(
-                x=float(data["x"]),
-                y=float(data["y"]),
-                headingDegrees=float(-1 * data["yaw"] * 180 / math.pi - 90),
+                x=true_x,
+                y=true_y,
+                headingDegrees=angle,
             )
         return None
     except Exception as error:
@@ -308,6 +313,10 @@ class ServerClient:
         body = resp.json()
         if body.get("action") != "draw":
             return None
+
+        print("GO")
+        print(body["navigateTo"])
+
         return DrawJob(
             jobId=body["jobId"],
             navigateTo=Pose(
