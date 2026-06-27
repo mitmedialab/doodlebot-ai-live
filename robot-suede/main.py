@@ -164,23 +164,6 @@ def setup_aruco_client(robot_name, marker_map, marker_size_m):
     print("Text:", response.text)
 
 
-def get_robot_canvas_position(pose: dict) -> dict[str, float]:
-    """
-    Returns (canvas_x, canvas_y) in cm.
-
-    x = lateral position along the marker face
-    y = distance along the canvas away from the marker
-        (projected onto ground plane, ignoring camera height)
-    """
-    # x/z are the ground-plane axes; y is vertical (camera mount height)
-    camera_height = pose["y"]  # vertical offset — use to correct ground projection
-
-    canvas_x = pose["x"] * 1000  # lateral, cm
-    canvas_y = np.sqrt(pose["z"] ** 2 - pose["y"] ** 2) * 1000  # ground-plane depth, cm
-
-    return {"x": canvas_x, "y": canvas_y}
-
-
 def estimate_pose() -> Pose | None:
     try:
         resp = requests.get(
@@ -192,23 +175,10 @@ def estimate_pose() -> Pose | None:
         print("angle: ", data["yaw"] * 180 / math.pi)
 
         if data:
-            # canvas_position = get_robot_canvas_position(data)
-            # print(canvas_position)
-            # print(marker_map)
-            # print(data["marker_id"])
-            # print(marker_map[str(data["marker_id"])])
-            # print(marker_map[str(data["marker_id"])]["yaw"])
-
-            # adjacent = data["z"] * math.cos(marker_map[str(data["marker_id"])]["yaw"])
-            # opposite = data["z"] * math.sin(marker_map[str(data["marker_id"])]["yaw"])
-
-            # print(float(data["yaw"] * 180 / math.pi))
-            # print(adjacent * 1000)
-            # print(opposite * 1000)
             return Pose(
                 x=float(data["x"]),
                 y=float(data["y"]),
-                headingDegrees=float(data["yaw"] * 180 / math.pi),
+                headingDegrees=float(data["yaw"] * -1 * 180 / math.pi),
             )
         return None
     except Exception as error:
