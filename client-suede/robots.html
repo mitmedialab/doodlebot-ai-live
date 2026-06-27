@@ -180,6 +180,13 @@
         background: #d4a843;
         color: #0e0e0c;
       }
+      button.danger {
+        background: #c0392b;
+        color: #fff;
+      }
+      button.danger:hover {
+        background: #e74c3c;
+      }
       button.ghost {
         border-color: #444;
         color: #888;
@@ -522,6 +529,8 @@
 
         <div class="btn-row">
           <button class="gold" onclick="saveCanvas()">Save canvas</button>
+          <button class="danger" onclick="clearDrawings()">Clear drawings</button>
+          <button class="danger" onclick="deleteCanvas()">Delete canvas</button>
         </div>
         <div class="toast" id="editorToast"></div>
         <div class="hint">
@@ -1024,6 +1033,55 @@
             `Saved "${payload.id}" — ${payload.regions.length} regions, ${payload.markers.length} markers`,
             true,
           );
+          refreshAll();
+        } catch (e) {
+          editorToast("Network error: " + e, false);
+        }
+      }
+
+      async function deleteCanvas() {
+        if (!tok()) return editorToast("Enter admin token", false);
+
+        const id = document.getElementById("cId").value.trim();
+        if (!id) return editorToast("Canvas id is required", false);
+
+        if (!confirm(`Delete canvas "${id}"? This cannot be undone.`)) return;
+
+        try {
+          const res = await fetch(`${host}/api/robots/canvases/${encodeURIComponent(id)}`, {
+            method: "DELETE",
+            headers: authHeaders(),
+          });
+          if (!res.ok) {
+            const t = await res.text();
+            return editorToast("Delete failed: " + t.slice(0, 160), false);
+          }
+          editorToast(`Deleted canvas "${id}"`, true);
+          refreshAll();
+        } catch (e) {
+          editorToast("Network error: " + e, false);
+        }
+      }
+
+      async function clearDrawings() {
+        if (!tok()) return editorToast("Enter admin token", false);
+
+        const id = document.getElementById("cId").value.trim();
+        if (!id) return editorToast("Canvas id is required", false);
+
+        if (!confirm(`Clear all drawings from "${id}"?`)) return;
+
+        try {
+          const res = await fetch(`${host}/api/robots/canvases/${encodeURIComponent(id)}/drawings`, {
+            method: "DELETE",
+            headers: authHeaders(),
+          });
+          if (!res.ok) {
+            const t = await res.text();
+            return editorToast("Clear failed: " + t.slice(0, 160), false);
+          }
+          const { cleared } = await res.json();
+          editorToast(`Cleared ${cleared} drawing(s) from "${id}"`, true);
           refreshAll();
         } catch (e) {
           editorToast("Network error: " + e, false);
