@@ -848,12 +848,21 @@
                   : b.status === "ready"
                     ? "#2d7d46"
                     : "#c79a2e";
-            parts.push(
-              `<circle cx="${b.pose.x}" cy="${b.pose.y}" r="${fs * 0.7}" fill="${color}" stroke="#fff" stroke-width="${sw}"/>`,
-            );
-            parts.push(
-              `<text x="${b.pose.x + fs * 0.9}" y="${b.pose.y + fs * 0.4}" font-size="${fs * 0.8}" font-family="monospace" fill="#222">${escSvg(b.name)}</text>`,
-            );
+              // Arrow for heading
+              const rad = (b.pose.headingDegrees * Math.PI) / 180;
+              const arrowLen = fs * 1.4;
+              const ax = b.pose.x + Math.cos(rad) * arrowLen;
+              const ay = b.pose.y + Math.sin(rad) * arrowLen;
+
+              parts.push(
+                `<line x1="${b.pose.x}" y1="${b.pose.y}" x2="${ax}" y2="${ay}" stroke="${color}" stroke-width="${sw * 1.5}" marker-end="url(#arrowhead)"/>`,
+              );
+              parts.push(
+                `<circle cx="${b.pose.x}" cy="${b.pose.y}" r="${fs * 0.7}" fill="${color}" stroke="#fff" stroke-width="${sw}"/>`,
+              );
+              parts.push(
+                `<text x="${b.pose.x + fs * 0.9}" y="${b.pose.y + fs * 0.4}" font-size="${fs * 0.8}" font-family="monospace" fill="#222">${escSvg(b.name)}</text>`,
+              );
           });
         parts.push("</svg>");
         return `<div class="canvas-card">
