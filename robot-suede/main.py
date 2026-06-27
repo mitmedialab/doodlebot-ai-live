@@ -25,7 +25,7 @@ HOST = "127.0.0.1"
 PORT = 5000
 
 robot = None
-marker_map = {"0": {"x": 0.0, "y": 415.0, "z": 0.0, "yaw": -math.pi / 2}}
+marker_map = {"0": {"x": 0.0, "y": 415.0, "z": 0.0, "yaw": math.pi / 2}}
 
 
 def send(msg):
