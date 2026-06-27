@@ -173,6 +173,7 @@ def estimate_pose() -> Pose | None:
 
         print(data)
         angle = float(-1 * data["yaw"] * 180 / math.pi - 90)
+        print(angle)
 
         camera_offset_mm = 60.0
         rad = math.radians(angle)
@@ -204,10 +205,16 @@ def navigate_to(target: Pose, current: Pose) -> None:
     dx = target.x - current.x
     dy = target.y - current.y
 
+    print("naigating")
+    print(target)
+    print(current)
+
     # canvas-style coordinate system (same as your TS)
     target_heading = math.atan2(-dy, dx)
 
-    turn = normalize_angle(target_heading - math.radians(current.headingDegrees))
+    turn = normalize_angle(
+        math.radians(target.headingDegrees) - math.radians(current.headingDegrees)
+    )
     distance = math.hypot(dx, dy)
 
     # Build commands exactly like your TS goToPoint()
