@@ -212,15 +212,21 @@ def navigate_to(target: Pose, current: Pose) -> None:
     # canvas-style coordinate system (same as your TS)
     target_heading = math.atan2(-dy, dx)
 
-    turn = normalize_angle(
-        math.radians(target.headingDegrees) - math.radians(current.headingDegrees)
-    )
+    turn1 = normalize_angle(target_heading - math.radians(current.headingDegrees))
     distance = math.hypot(dx, dy)
 
     # Build commands exactly like your TS goToPoint()
-    arc_cmd = ArcCommand(
+    arc_cmd1 = ArcCommand(
         radius=0,
-        degrees=math.degrees(turn),  # convert radians → degrees for Arduino protocol
+        degrees=math.degrees(turn1),  # convert radians → degrees for Arduino protocol
+    )
+    newAngle = current.headingDegrees + math.degrees(turn1)
+    turn2 = normalize_angle(
+        math.radians(newAngle) - math.radians(target.headingDegrees)
+    )
+    arc_cmd2 = ArcCommand(
+        radius=0,
+        degrees=math.degrees(turn2),  # convert radians → degrees for Arduino protocol
     )
     # distanceCm = distance / 10
     # steps = distanceCm * CM_TO_STEPS
@@ -228,7 +234,7 @@ def navigate_to(target: Pose, current: Pose) -> None:
     line_cmd = LineCommand(distance=distance, penDown=False)
 
     # Execute through your existing pipeline
-    execute_commands([arc_cmd, line_cmd])
+    execute_commands([arc_cmd1, line_cmd, arc_cmd2])
 
 
 def send_command(cmd: str) -> None:
