@@ -226,7 +226,9 @@ def navigate_to(target: Pose, current: Pose) -> None:
     )
     arc_cmd2 = ArcCommand(
         radius=0,
-        degrees=math.degrees(turn2),  # convert radians → degrees for Arduino protocol
+        degrees=math.degrees(
+            -1 * turn2
+        ),  # convert radians → degrees for Arduino protocol
     )
     # distanceCm = distance / 10
     # steps = distanceCm * CM_TO_STEPS
@@ -256,7 +258,7 @@ def execute_commands(commands: list[DrawingCommand]) -> None:
             if currentPen == 0:
                 send_command(f"u,45")
                 currentPen = 1
-            send_command(f"t,{cmd.radius},{cmd.degrees}")
+            send_command(f"t,{cmd.radius},{-1*cmd.degrees}")
 
         elif isinstance(cmd, LineCommand):
             if cmd.penDown:
@@ -274,7 +276,7 @@ def execute_commands(commands: list[DrawingCommand]) -> None:
             send_command(f"m,{round(steps)},{round(steps)},2000,2000")
 
         elif isinstance(cmd, SpinCommand):
-            send_command(f"t,0,{cmd.degrees}")
+            send_command(f"t,0,{-1*cmd.degrees}")
 
 
 # --------------------------------------------------------------------------- #
