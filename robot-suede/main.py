@@ -176,9 +176,9 @@ def estimate_pose() -> Pose | None:
 
         if data:
             return Pose(
-                x=true_x,
-                y=true_y,
-                headingDegrees=angle,
+                x=data["x"],
+                y=data["y"],
+                headingDegrees=float(data["yaw"] * 180 / math.pi),
             )
         return None
     except Exception as error:
