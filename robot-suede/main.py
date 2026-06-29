@@ -292,7 +292,7 @@ class ServerClient:
             self._url(f"/api/robots/markers?robot={robot}"), timeout=10
         )
         resp.raise_for_status()
-        print(resp.json())
+        print(resp.json()["markers"])
         return {
             str(m["id"]): {
                 "x": m["position"]["x"],
@@ -300,7 +300,7 @@ class ServerClient:
                 "z": 0,
                 "yaw": m["yawRadians"],
             }
-            for m in resp.json()
+            for m in resp.json()["markers"]
         }
 
     def check_in(
