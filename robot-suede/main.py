@@ -210,7 +210,7 @@ def navigate_to(target: Pose, current: Pose) -> None:
     print(current)
 
     # canvas-style coordinate system (same as your TS)
-    target_heading = math.atan2(-dy, dx)
+    target_heading = math.atan2(dy, dx)
 
     turn1 = normalize_angle(target_heading - math.radians(current.headingDegrees))
     distance = math.hypot(dx, dy)
