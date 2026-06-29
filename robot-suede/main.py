@@ -81,6 +81,7 @@ class Pose:
 class ArucoMarker:
     id: int
     position: Point
+    angle: float
     sizeMm: Optional[float] = None
 
 
@@ -148,19 +149,12 @@ class DetectedMarker:
     corners: list[Point]
 
 
-def setup_aruco_client(robot_name):
-    global robot, marker_map
-    robot = robot_name
-    print("SETTING UP ARUCO", robot_name)
+def setup_aruco_client(robot_name, marker_map):
     response = requests.post(
         f"http://{robot_name}.direct.mitlivinglab.org:8001/aruco/setup",
-        json={
-            "robot_name": robot_name,
-        },
+        json={"robot_name": robot_name, "marker_map": marker_map},
     )
     print("Status:", response.status_code)
-    print("Text:", response.text)
-    marker_map = response.json()
 
 
 def estimate_pose() -> Pose | None:
@@ -292,18 +286,21 @@ class ServerClient:
     def _url(self, path: str) -> str:
         return f"{self._config.server_url.rstrip('/')}{path}"
 
-    def fetch_markers(self) -> list[ArucoMarker]:
+    def fetch_markers(self) -> dict[str, dict[str, float]]:
         """``GET /api/robots/markers`` — the Locate step's known marker layout."""
-        resp = self._session.get(self._url("/api/robots/markers"), timeout=10)
+        resp = self._session.get(
+            self._url(f"/api/robots/markers?robot={robot}"), timeout=10
+        )
         resp.raise_for_status()
-        return [
-            ArucoMarker(
-                id=m["id"],
-                position=Point(x=m["position"]["x"], y=m["position"]["y"]),
-                sizeMm=m.get("sizeMm"),
-            )
-            for m in resp.json()["markers"]
-        ]
+        return {
+            str(m["id"]): {
+                "x": m["position"]["x"],
+                "y": m["position"]["y"],
+                "z": 0,
+                "yaw": m["yawRadians"],
+            }
+            for m in resp.json()
+        }
 
     def check_in(
         self,
@@ -399,8 +396,9 @@ if __name__ == "__main__":
     client = ServerClient(config)
     print(f"[{config.name}] starting; server = {config.server_url}")
 
+    robot = args.name
     marker_map = client.fetch_markers()
 
-    setup_aruco_client(args.name)
+    setup_aruco_client(args.name, marker_map)
 
     run(client)
