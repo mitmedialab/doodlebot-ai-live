@@ -235,6 +235,9 @@ def navigate_to(target: Pose, current: Pose) -> None:
 
     # Execute through your existing pipeline
     execute_commands([arc_cmd1, line_cmd, arc_cmd2])
+    print(arc_cmd1)
+    print(line_cmd)
+    print(arc_cmd2)
 
 
 def send_command(cmd: str) -> None:
