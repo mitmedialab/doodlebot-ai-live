@@ -299,6 +299,7 @@ class ServerClient:
                 "y": m["position"]["y"],
                 "z": 0,
                 "yaw": m["yawRadians"],
+                "size": m["sizeMm"] / 1000,
             }
             for m in resp.json()["markers"]
         }
