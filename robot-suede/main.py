@@ -333,6 +333,8 @@ class ServerClient:
 
         print("GO")
         print(body["navigateTo"])
+        print("exit path")
+        print(body.get("exitPath", []))
 
         return DrawJob(
             jobId=body["jobId"],
