@@ -166,7 +166,7 @@ def estimate_pose() -> Pose | None:
         data = resp.json()
 
         print(data)
-        angle = float(-1 * data["yaw"] * 180 / math.pi - 90)
+        angle = float(-1 * data["yaw"] * 180 / math.pi + 90)
         print(angle)
 
         camera_offset_mm = 60.0
