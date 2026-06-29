@@ -292,6 +292,7 @@ class ServerClient:
             self._url(f"/api/robots/markers?robot={robot}"), timeout=10
         )
         resp.raise_for_status()
+        print(resp.json())
         return {
             str(m["id"]): {
                 "x": m["position"]["x"],
