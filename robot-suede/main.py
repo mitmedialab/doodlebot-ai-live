@@ -25,7 +25,7 @@ HOST = "127.0.0.1"
 PORT = 5000
 
 robot = None
-marker_map = {"0": {"x": 0.0, "y": 455.0, "z": 0.0, "yaw": -math.pi / 2}}
+marker_map = None
 
 
 def send(msg):
@@ -148,23 +148,23 @@ class DetectedMarker:
     corners: list[Point]
 
 
-def setup_aruco_client(robot_name, marker_map, marker_size_m):
-    global robot
+def setup_aruco_client(robot_name):
+    global robot, marker_map
     robot = robot_name
     print("SETTING UP ARUCO", robot_name)
     response = requests.post(
         f"http://{robot_name}.direct.mitlivinglab.org:8001/aruco/setup",
         json={
             "robot_name": robot_name,
-            "marker_map": marker_map,
-            "marker_size_m": marker_size_m,
         },
     )
     print("Status:", response.status_code)
     print("Text:", response.text)
+    marker_map = response.json()
 
 
 def estimate_pose() -> Pose | None:
+
     try:
         resp = requests.get(
             f"http://{robot}.direct.mitlivinglab.org:8001/aruco/position", timeout=1.0
@@ -359,10 +359,8 @@ class ServerClient:
 #     return estimate_pose()
 
 
-def run(config: Config) -> None:
+def run(client: ServerClient) -> None:
     """Run the Locate → Poll → Draw loop forever."""
-    client = ServerClient(config)
-    print(f"[{config.name}] starting; server = {config.server_url}")
 
     while True:
         # --- Locate ---------------------------------------------------------
@@ -397,6 +395,12 @@ if __name__ == "__main__":
         "--server", default="https://doodlebot.media.mit.edu", help="server base URL"
     )
     args = parser.parse_args()
-    setup_aruco_client(args.name, marker_map, 0.08)
+    config = Config(name=args.name, server_url=args.server)
+    client = ServerClient(config)
+    print(f"[{config.name}] starting; server = {config.server_url}")
 
-    run(Config(name=args.name, server_url=args.server))
+    marker_map = client.fetch_markers()
+
+    setup_aruco_client(args.name)
+
+    run(client)
