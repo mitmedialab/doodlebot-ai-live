@@ -252,7 +252,8 @@ def execute_commands(commands: list[DrawingCommand]) -> None:
             if currentPen == 0:
                 send_command(f"u,45")
                 currentPen = 1
-            send_command(f"t,{cmd.radius},{-1*cmd.degrees}")
+            radiusInch = 0.0393701 * cmd.radius
+            send_command(f"t,{radiusInch},{-1*cmd.degrees}")
 
         elif isinstance(cmd, LineCommand):
             if cmd.penDown:
