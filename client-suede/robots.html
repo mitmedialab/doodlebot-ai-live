@@ -454,11 +454,11 @@
           </div>
           <div class="field">
             <label>Width (mm)</label>
-            <input type="number" id="cW" value="1219.2" step="any" />
+            <input type="number" id="cW" value="915" step="any" />
           </div>
           <div class="field">
             <label>Height (mm)</label>
-            <input type="number" id="cH" value="2438.4" step="any" />
+            <input type="number" id="cH" value="530" step="any" />
           </div>
         </div>
         <div class="btn-row">
@@ -1214,11 +1214,11 @@
       }, 2000);
 
       // seed the editor with a sensible starting layout
-      addMarkerRow({ id: 0, x: 0, y: 0, sizeMm: 100 });
-      addMarkerRow({ id: 1, x: 1219.2, y: 0, sizeMm: 100 });
-      addMarkerRow({ id: 2, x: 1219.2, y: 2438.4, sizeMm: 100 });
-      addMarkerRow({ id: 3, x: 0, y: 2438.4, sizeMm: 100 });
-      addRegionRow({ id: "r00", x: 0, y: 0, width: 609.6, height: 609.6, robot: "bot-0" });
+      addMarkerRow({ id: 0, x: 460, y: 0, sizeMm: 80 });
+      // addMarkerRow({ id: 1, x: 1219.2, y: 0, sizeMm: 100 });
+      // addMarkerRow({ id: 2, x: 1219.2, y: 2438.4, sizeMm: 100 });
+      // addMarkerRow({ id: 3, x: 0, y: 2438.4, sizeMm: 100 });
+      addRegionRow({ id: "r00", x: 180, y: 180, width: 555, height: 170, robot: "bot-0" });
 
       refreshAll();
     </script>
