@@ -163,6 +163,30 @@ def wait_for_server(host=HOST, port=PORT, timeout=60, interval=0.5):
             time.sleep(interval)
 
 
+def wait_for_aruco_setup(robot_name, timeout=60, interval=1.0):
+    url = f"http://{robot_name}.direct.mitlivinglab.org:8001/aruco/setup"
+
+    start = time.time()
+
+    while True:
+        try:
+            # Try a GET first (safe probe)
+            r = requests.get(url, timeout=2)
+
+            # Any non-5xx response means server is up
+            if r.status_code < 500:
+                print("ArUco endpoint is ready.")
+                return True
+
+        except requests.RequestException:
+            pass
+
+        if time.time() - start > timeout:
+            raise TimeoutError(f"Timed out waiting for {url}")
+
+        time.sleep(interval)
+
+
 def setup_aruco_client(robot_name, marker_map):
     response = requests.post(
         f"http://{robot_name}.direct.mitlivinglab.org:8001/aruco/setup",
@@ -412,6 +436,7 @@ if __name__ == "__main__":
         "--server", default="https://doodlebot.media.mit.edu", help="server base URL"
     )
     wait_for_server()
+    wait_for_aruco_setup(hostname, 300)
     args = parser.parse_args()
     config = Config(name=hostname, server_url=args.server)
     client = ServerClient(config)
