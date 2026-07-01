@@ -286,14 +286,29 @@ class PlacementConfig:
     angles_deg: tuple[float, ...] = tuple(float(a) for a in range(0, 360, 15))
     """Candidate rotations, tried in order (0° first = prefer upright)."""
 
-    strategy: Literal["bottom_left", "scatter"] = "bottom_left"
+    strategy: Literal["origin", "scatter"] = "origin"
     """How to choose among valid poses.
 
-    ``bottom_left`` packs every drawing toward the region's (0,0) corner — dense,
-    but it looks like a print head filling a page. ``scatter`` picks a random
-    valid pose (position + rotation), so drawings appear spread across the region
-    like several artists working it at once; it jams at lower coverage (random
-    sequential packing always does), trading density for that organic look.
+    ``origin`` packs every drawing toward the region's (0,0) corner — the
+    classic Bottom-Left-Fill heuristic, though in this screen-like y-down frame
+    (0,0) is the top-left. Dense, but it looks like a print head filling a page.
+    ``scatter`` picks a random valid pose (position + rotation), so drawings
+    appear spread across the region like several artists working it at once; it
+    jams at lower coverage (random sequential packing always does), trading
+    density for that organic look.
+    """
+
+    target_footprint_mm: float = 200.0
+    """Desired size of a placed drawing given ample free space: the coordinator
+    uniformly scales each drawing (preserving aspect ratio) so its *longest*
+    footprint dimension is this many mm, then shrinks below it only if it won't
+    fit. Carried here for convenience; the scaling itself lives in ``robots.py``.
+    """
+
+    min_footprint_scale: float = 0.4
+    """Floor for the shrink-to-fit fallback, as a fraction of ``target_footprint_mm``.
+    A drawing that won't fit even at this size is left queued rather than drawn
+    illegibly small. Also carried for convenience; applied in ``robots.py``.
     """
 
 
@@ -414,7 +429,7 @@ class Region:
 
         For each candidate rotation we get the full map of collision-free offsets
         in one shot via FFT cross-correlation (see ``_free_offsets``), then select
-        per ``config.strategy``: ``bottom_left`` keeps the offset nearest the
+        per ``config.strategy``: ``origin`` keeps the offset nearest the
         ``(0,0)`` corner (ties prefer the smaller angle, so drawings stay upright
         when rotating buys nothing); ``scatter`` picks a uniformly random free
         offset for an organic spread. ``search_step_cells`` subsamples the offset
@@ -425,8 +440,8 @@ class Region:
         rotated/rasterized footprints never change, so a shared cache avoids
         recomputing them. When omitted a throwaway cache is used (single call).
 
-        DENSITY EXTENSION POINT (bottom_left): ranking by the *mask's corner*
-        position is a standard bottom-left heuristic — good enough, not optimal,
+        DENSITY EXTENSION POINT (origin): ranking by the *mask's corner*
+        position is a standard bottom-left-fill heuristic — good enough, not optimal,
         and it leaves the canvas fragmented once it fills. If packing density
         becomes a problem, upgrade the ranking to a true minimal-waste score: a
         contact-point metric (favour poses whose perimeter touches existing ink /
@@ -530,12 +545,37 @@ class Region:
         self.grid[:] = 0
 
 
+def edge_yaw(x: float, y: float, width: float, height: float) -> float:
+    """Yaw (radians) of a marker sitting on the canvas boundary.
+
+    Frame is screen-like (origin top-left, +x right, +y down). Yaw is the standard
+    heading of the marker's inward-facing normal — ``atan2(ny, nx)`` measured from
+    +x, increasing clockwise — i.e. the direction the marker faces into the canvas:
+    left (x=0) faces right -> 0, top (y=0) faces down -> +pi/2,
+    right (x=width) faces left -> pi, bottom (y=height) faces up -> -pi/2. The
+    nearest edge wins; a corner ties two edges, and we break ties toward the
+    horizontal edge (top/bottom) — consistent with the default corner markers.
+    """
+    d_top, d_bottom, d_left, d_right = abs(y), abs(height - y), abs(x), abs(width - x)
+    nearest = min(d_top, d_bottom, d_left, d_right)
+    if nearest == d_top:
+        return math.pi / 2
+    if nearest == d_bottom:
+        return -math.pi / 2
+    if nearest == d_left:
+        return 0.0
+    return math.pi
+
+
 @dataclass
 class Marker:
     id: int
     x: float
     y: float
     size_mm: Optional[float] = None
+    yaw: Optional[float] = (
+        None  # radians; derived from the canvas edge, not stored config
+    )
 
 
 @dataclass
@@ -569,6 +609,12 @@ class CanvasStore:
 
     def upsert(self, canvas: Canvas) -> None:
         self._canvases[canvas.id] = canvas
+
+    def remove(self, canvas_id: str) -> None:
+        # Remove the canvas; raises KeyError if not found
+        if canvas_id not in self._canvases:
+            raise KeyError(canvas_id)
+        del self._canvases[canvas_id]
 
     def all_markers(self) -> list[Marker]:
         return [m for canvas in self._canvases.values() for m in canvas.markers]
