@@ -149,28 +149,18 @@ class DetectedMarker:
     corners: list[Point]
 
 
-def wait_for_aruco(robot_name, timeout=300):
-    url = f"http://{robot_name}.direct.mitlivinglab.org:8001/aruco/setup"
-
+def wait_for_server(host=HOST, port=PORT, timeout=60, interval=0.5):
     start = time.time()
 
     while True:
         try:
-            response = requests.get(url, timeout=2)
-
-            # Endpoint exists
-            if response.status_code < 500:
-                print("ArUco server is ready.")
+            with socket.create_connection((host, port), timeout=2):
+                print(f"Server is available on {host}:{port}")
                 return
-
-        except requests.RequestException:
-            pass
-
-        if time.time() - start > timeout:
-            raise TimeoutError("Timed out waiting for ArUco server.")
-
-        print("Waiting for ArUco server...")
-        time.sleep(1)
+        except OSError:
+            if time.time() - start > timeout:
+                raise TimeoutError(f"Timed out waiting for {host}:{port}")
+            time.sleep(interval)
 
 
 def setup_aruco_client(robot_name, marker_map):
@@ -421,7 +411,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--server", default="https://doodlebot.media.mit.edu", help="server base URL"
     )
-    wait_for_aruco(hostname)
+    wait_for_server()
     args = parser.parse_args()
     config = Config(name=hostname, server_url=args.server)
     client = ServerClient(config)
