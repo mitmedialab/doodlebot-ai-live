@@ -502,6 +502,14 @@
               <option value="scatter">scatter (organic)</option>
             </select>
           </div>
+          <div class="field">
+            <label>Target footprint (mm)</label>
+            <input type="number" id="pTargetFootprint" value="200" step="any" />
+          </div>
+          <div class="field">
+            <label>Min footprint scale</label>
+            <input type="number" id="pMinScale" value="0.4" step="any" />
+          </div>
         </div>
 
         <div class="sub">Aruco markers</div>
@@ -1017,6 +1025,8 @@
             searchStepCells: Math.round(num("pStep")),
             angleStepDeg: num("pAngle"),
             strategy: document.getElementById("pStrategy").value,
+            targetFootprintMm: num("pTargetFootprint"),
+            minFootprintScale: num("pMinScale"),
           },
         };
       }
