@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sketch Display</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+        background: #0e0e0c;
+        font-family: monospace;
+        overflow: hidden;
+      }
+
+      /* upper half — free for projection, title, etc. */
+      #upper {
+        height: 50vh;
+        width: 100%;
+      }
+
+      /* divider */
+      #divider {
+        height: 1px;
+        background: linear-gradient(
+          to right,
+          transparent,
+          #252520 20%,
+          #252520 80%,
+          transparent
+        );
+        position: relative;
+      }
+      #divider-label {
+        position: absolute;
+        left: 1.2rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 0.55rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #2a2a28;
+        background: #0e0e0c;
+        padding: 0 0.5rem;
+      }
+      #live-dot {
+        display: inline-block;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: #2ecc71;
+        vertical-align: middle;
+        margin-right: 0.3rem;
+        animation: blink 2s ease-in-out infinite;
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.25;
+        }
+      }
+
+      /* lower half */
+      #lower {
+        height: calc(50vh - 1px);
+        overflow: hidden;
+      }
+
+      /* CSS grid — columns and rows set by JS using fr units to fill exactly */
+      #strip {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        gap: 2px;
+        background: #0e0e0c;
+      }
+
+      .card {
+        position: relative;
+        overflow: hidden;
+        background: #fff;
+        min-width: 0;
+        min-height: 0;
+      }
+      .card img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      /* phone-color tab */
+      .card-bar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--pc, #555);
+      }
+
+      /* selected by curator */
+      .card.selected::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        box-shadow: inset 0 0 0 3px var(--pc, #d4a843);
+        pointer-events: none;
+      }
+
+      /* combining pulse 
+  @keyframes combPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .card.combining { animation: combPulse 0.55s ease-in-out infinite; }*/
+
+      /* entrance */
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .card.entering {
+        animation: fadeIn 0.3s ease-out forwards;
+      }
+
+      /* Shake animation for images waiting on GPT */
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translate(0, 0) rotate(0deg);
+        }
+        25% {
+          transform: translate(-2px, 2px) rotate(-2deg);
+        }
+        50% {
+          transform: translate(2px, -2px) rotate(2deg);
+        }
+        75% {
+          transform: translate(-2px, -2px) rotate(-1deg);
+        }
+      }
+
+      /* Make currently combining cards shake */
+      .card.combining {
+        animation: shake 0.3s infinite !important;
+        z-index: 10;
+      }
+
+      /* Animation class attached to cloned cards to make them fly */
+      .flying-card {
+        position: fixed;
+        z-index: 9999;
+        transition: all 1s cubic-bezier(0.4, 0, 0.2, 1); /* Smooth acceleration */
+        pointer-events: none;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+      }
+
+      #emptyState {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.65rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #222;
+        grid-column: 1 / -1;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="upper" style="position: relative">
+      <img
+        id="robotImage"
+        src="./robot.png"
+        alt="Robot"
+        style="
+          display: none;
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 250px;
+          height: auto;
+          z-index: 100;
+        "
+      />
+    </div>
+
+    <div id="divider">
+      <span id="divider-label">
+        <span id="live-dot"></span>
+        <span id="sketch-count">0</span> sketches
+      </span>
+    </div>
+
+    <div id="lower">
+      <div id="strip">
+        <div id="emptyState">waiting for approved sketches…</div>
+      </div>
+    </div>
+
+    <script>
+      const MIN_COLS = 4;
+      const MAX_CARDS = 50;
+      const GAP = 2;
+
+      const MODE = "PROD";
+      const host =
+        MODE === "DEV"
+          ? "http://localhost:5001"
+          : "https://doodlebot.media.mit.edu/live";
+
+      /**
+       * @typedef {Object} Sketch
+       * @property {string} filename
+       * @property {string} dataUrl
+       * @property {string} phoneId
+       * @property {string} phoneColor
+       * @property {'drawing'|'text'} kind
+       * @property {boolean} [combinable]
+       */
+
+      /** @type {Sketch[]} */
+      let sketches = [];
+      /** @type {Set<string>} */
+      let selected = new Set();
+      /** @type {Set<string>} */
+      let combining = new Set();
+
+      // Prepare your 10 robot images here.
+      // For now, you can just duplicate your placeholder name or use actual filenames.
+      /** @type {string[]} */
+      const robotImagePool = [
+        "./robot.png",
+        "./robot.png",
+        "./robot.png",
+        "./robot.png",
+        "./robot.png",
+        "./robot.png",
+        "./robot.png",
+        "./robot.png",
+        "./robot.png",
+        "./robot.png",
+      ];
+
+      // ── Grid sizing ───────────────────────────────────────────────────────────────
+      /**
+       * Compute the column/row count that maximises cell size and apply it to the grid.
+       * @returns {void}
+       */
+      function applyGrid() {
+        const strip = /** @type {HTMLDivElement} */ (
+          document.getElementById("strip")
+        );
+        const count = Math.min(Math.max(sketches.length, MIN_COLS), MAX_CARDS);
+
+        // find the column count that maximises cell size while all rows fit in height
+        const W = strip.clientWidth;
+        const H = strip.clientHeight;
+        let bestCols = MIN_COLS,
+          bestSize = 0;
+
+        for (let cols = MIN_COLS; cols <= count; cols++) {
+          const rows = Math.ceil(count / cols);
+          const size = Math.min(
+            Math.floor((W - GAP * (cols - 1)) / cols),
+            Math.floor((H - GAP * (rows - 1)) / rows),
+          );
+          if (size > bestSize) {
+            bestSize = size;
+            bestCols = cols;
+          }
+        }
+
+        const bestRows = Math.ceil(count / bestCols);
+        strip.style.gridTemplateColumns = `repeat(${bestCols}, 1fr)`;
+        strip.style.gridTemplateRows = `repeat(${bestRows}, 1fr)`;
+      }
+
+      window.addEventListener("resize", applyGrid);
+
+      // ── Render ────────────────────────────────────────────────────────────────────
+      /**
+       * Sync the DOM card strip with the current `sketches` state (add/remove/update).
+       * @returns {void}
+       */
+      function renderStrip() {
+        const strip = /** @type {HTMLDivElement} */ (
+          document.getElementById("strip")
+        );
+        const visible = sketches.slice(0, MAX_CARDS);
+        document.getElementById("sketch-count").textContent = sketches.length;
+
+        if (visible.length === 0) {
+          strip.innerHTML =
+            '<div id="emptyState">waiting for approved sketches…</div>';
+          return;
+        }
+        const empty = document.getElementById("emptyState");
+        if (empty) empty.remove();
+
+        // index existing
+        const existing = {};
+        strip
+          .querySelectorAll(".card")
+          .forEach((c) => (existing[c.dataset.filename] = c));
+
+        // remove stale
+        const visSet = new Set(visible.map((s) => s.filename));
+        Object.keys(existing).forEach((fn) => {
+          if (!visSet.has(fn)) existing[fn].remove();
+        });
+
+        // add new, prepend (newest first)
+        visible.forEach((sk) => {
+          if (existing[sk.filename]) {
+            updateState(existing[sk.filename], sk.filename);
+            return;
+          }
+          strip.prepend(makeCard(sk));
+        });
+
+        applyGrid();
+      }
+
+      /**
+       * Build a card element for a sketch.
+       * @param {Sketch} sk
+       * @returns {HTMLDivElement}
+       */
+      function makeCard(sk) {
+        const card = document.createElement("div");
+        card.className = "card entering";
+        card.dataset.filename = sk.filename;
+        card.style.setProperty("--pc", sk.phoneColor);
+
+        const img = document.createElement("img");
+        img.src = sk.dataUrl;
+        img.draggable = false;
+
+        const bar = document.createElement("div");
+        bar.className = "card-bar";
+
+        card.appendChild(img);
+        card.appendChild(bar);
+        setTimeout(() => card.classList.remove("entering"), 350);
+        updateState(card, sk.filename);
+        return card;
+      }
+
+      /**
+       * Toggle the selected/combining classes on a card from current state sets.
+       * @param {HTMLElement} card
+       * @param {string} filename
+       * @returns {void}
+       */
+      function updateState(card, filename) {
+        card.classList.toggle("selected", selected.has(filename));
+        card.classList.toggle("combining", combining.has(filename));
+      }
+
+      // ── Load ──────────────────────────────────────────────────────────────────────
+      /**
+       * Fetch the current sketches from the backend and render them.
+       * @returns {Promise<void>}
+       */
+      async function load() {
+        const res = await fetch(`${host}/api/sketches`);
+        sketches = await res.json();
+        renderStrip();
+      }
+
+      // ── SSE ───────────────────────────────────────────────────────────────────────
+      const es = new EventSource(`${host}/stream`);
+
+      es.addEventListener("approved_sketch", (e) => {
+        /** @type {Sketch} */
+        const sk = JSON.parse(e.data);
+        if (!sketches.find((s) => s.filename === sk.filename)) {
+          sketches.unshift(sk);
+          renderStrip();
+        }
+      });
+
+      es.addEventListener("deleted_sketch", (e) => {
+        /** @type {{ filename: string }} */
+        const { filename } = JSON.parse(e.data);
+        sketches = sketches.filter((s) => s.filename !== filename);
+        selected.delete(filename);
+        combining.delete(filename);
+        renderStrip();
+      });
+
+      es.addEventListener("selection_changed", (e) => {
+        /** @type {{ selected: Sketch[] }} */
+        const { selected: sel } = JSON.parse(e.data);
+        selected = new Set(sel.map((s) => s.filename));
+        document
+          .querySelectorAll(".card")
+          .forEach((c) =>
+            c.classList.toggle(
+              "selected",
+              selected.has(/** @type {HTMLElement} */ (c).dataset.filename),
+            ),
+          );
+      });
+
+      es.addEventListener("combining", (e) => {
+        combining = new Set(JSON.parse(e.data).filenames);
+        selected = new Set();
+        document.querySelectorAll(".card").forEach((c) => {
+          c.classList.remove("selected");
+          c.classList.toggle(
+            "combining",
+            combining.has(/** @type {HTMLElement} */ (c).dataset.filename),
+          );
+        });
+      });
+      /*
+es.addEventListener('combined', () => {
+  combining = new Set();
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('combining'));
+});*/
+
+      es.addEventListener("combined", (e) => {
+        const upperRect = document
+          .getElementById("upper")
+          .getBoundingClientRect();
+        const targetX = upperRect.left + upperRect.width / 2;
+        const targetY = upperRect.top + upperRect.height / 2;
+
+        const cards = document.querySelectorAll(".card.combining");
+
+        // 1. Fly the cards to the center
+        cards.forEach((card) => {
+          const clone = /** @type {HTMLDivElement} */ (card.cloneNode(true));
+          const rect = card.getBoundingClientRect();
+
+          clone.classList.remove("combining", "selected");
+          clone.classList.add("flying-card");
+
+          clone.style.left = rect.left + "px";
+          clone.style.top = rect.top + "px";
+          clone.style.width = rect.width + "px";
+          clone.style.height = rect.height + "px";
+
+          document.body.appendChild(clone);
+          /** @type {HTMLElement} */ (card).style.visibility = "hidden";
+
+          void clone.offsetWidth; // Force reflow
+
+          clone.style.left = targetX + "px";
+          clone.style.top = targetY + "px";
+          clone.style.transform = "translate(-50%, -50%) scale(0.1)";
+          clone.style.opacity = "0";
+
+          setTimeout(() => clone.remove(), 1000);
+        });
+
+        // 2. Wait exactly 1 second for the flight to finish
+        setTimeout(() => {
+          // --- NEW: Remove the combined images from the array entirely ---
+          sketches = sketches.filter((s) => !combining.has(s.filename));
+
+          // Reset state and redraw the strip (this drops the removed images from the layout)
+          combining = new Set();
+          renderStrip();
+
+          // 3. Reveal the Robot
+          const robot = /** @type {HTMLImageElement} */ (
+            document.getElementById("robotImage")
+          );
+          if (robot) {
+            // Pick a random robot from your array
+            const randomIndex = Math.floor(
+              Math.random() * robotImagePool.length,
+            );
+            robot.src = robotImagePool[randomIndex];
+
+            // Fade in
+            robot.style.display = "block";
+            robot.style.opacity = "0";
+            robot.style.transition = "opacity 0.5s ease-in-out";
+
+            void robot.offsetWidth;
+            robot.style.opacity = "1";
+
+            // 4. Hide the robot after 15 seconds
+            setTimeout(() => {
+              robot.style.opacity = "0"; // Start the fade-out
+
+              // Wait 500ms for the fade-out to finish, then remove it from the layout completely
+              setTimeout(() => {
+                robot.style.display = "none";
+              }, 500);
+            }, 15000);
+          }
+        }, 1000);
+      });
+
+      load();
+    </script>
+  </body>
+</html>
