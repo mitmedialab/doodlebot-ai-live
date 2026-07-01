@@ -367,7 +367,7 @@ def run(client: ServerClient) -> None:
     while True:
         # --- Locate ---------------------------------------------------------
         pose = estimate_pose()
-        while not pose:
+        while not pose or pose:
             execute_commands([SpinCommand(degrees=10)])
             pose = estimate_pose()
 
