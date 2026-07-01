@@ -149,6 +149,30 @@ class DetectedMarker:
     corners: list[Point]
 
 
+def wait_for_aruco(robot_name, timeout=300):
+    url = f"http://{robot_name}.direct.mitlivinglab.org:8001/aruco/setup"
+
+    start = time.time()
+
+    while True:
+        try:
+            response = requests.get(url, timeout=2)
+
+            # Endpoint exists
+            if response.status_code < 500:
+                print("ArUco server is ready.")
+                return
+
+        except requests.RequestException:
+            pass
+
+        if time.time() - start > timeout:
+            raise TimeoutError("Timed out waiting for ArUco server.")
+
+        print("Waiting for ArUco server...")
+        time.sleep(1)
+
+
 def setup_aruco_client(robot_name, marker_map):
     response = requests.post(
         f"http://{robot_name}.direct.mitlivinglab.org:8001/aruco/setup",
@@ -391,19 +415,21 @@ if __name__ == "__main__":
 
     import argparse
 
+    hostname = socket.gethostname()
+    print("hostname", hostname)
     parser = argparse.ArgumentParser(description="Doodlebot client")
-    parser.add_argument("--name", required=True, help="this bot's unique name")
     parser.add_argument(
         "--server", default="https://doodlebot.media.mit.edu", help="server base URL"
     )
+    wait_for_aruco(hostname)
     args = parser.parse_args()
-    config = Config(name=args.name, server_url=args.server)
+    config = Config(name=hostname, server_url=args.server)
     client = ServerClient(config)
     print(f"[{config.name}] starting; server = {config.server_url}")
 
-    robot = args.name
+    robot = hostname
     marker_map = client.fetch_markers()
 
-    setup_aruco_client(args.name, marker_map)
+    setup_aruco_client(hostname, marker_map)
 
     run(client)
