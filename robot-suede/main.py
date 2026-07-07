@@ -21,6 +21,9 @@ import math
 import requests
 import numpy as np
 
+from shapely.geometry import LineString, Point as ShapelyPoint
+from shapely.ops import unary_union
+
 HOST = "127.0.0.1"
 PORT = 5000
 
@@ -70,6 +73,9 @@ class Point:
     y: float
 
 
+Stroke = list[Point]
+
+
 @dataclass
 class Pose:
     x: float
@@ -112,6 +118,7 @@ DrawingCommand = Union[LineCommand, SpinCommand, ArcCommand]
 class DrawJob:
     jobId: str
     navigateTo: Pose
+    strokes: list[Stroke]
     commands: list[DrawingCommand]
     exitPath: list[DrawingCommand] = field(default_factory=list)
 
@@ -237,10 +244,6 @@ def navigate_to(target: Pose, current: Pose) -> None:
     dx = target.x - current.x
     dy = target.y - current.y
 
-    print("naigating")
-    print(target)
-    print(current)
-
     # canvas-style coordinate system (same as your TS)
     target_heading = math.atan2(dy, dx)
 
@@ -280,6 +283,138 @@ def send_command(cmd: str) -> None:
 
 
 CM_TO_STEPS = 7.16 * 16
+
+
+def compute_exit_pose(
+    strokes,
+    markers,
+    allowed_region=None,
+    robot_radius=0.08,
+    min_marker_distance=0.20,
+    max_marker_distance=0.60,
+    distance_step=0.05,
+) -> Pose | None:
+    drawing = unary_union(
+        [
+            LineString(stroke).buffer(robot_radius)
+            for stroke in strokes
+            if len(stroke) >= 2
+        ]
+    )
+
+    robot = np.array(strokes[-1][-1])
+
+    best = None
+    best_distance = float("inf")
+
+    for marker_id, marker in markers.items():
+
+        marker_pos = np.array(
+            [
+                marker["x"],
+                marker["y"],
+            ]
+        )
+
+        normal = np.array(
+            [
+                np.cos(marker["yaw"]),
+                np.sin(marker["yaw"]),
+            ]
+        )
+
+        # Try positions in front of the marker
+        for d in np.arange(
+            min_marker_distance,
+            max_marker_distance + distance_step,
+            distance_step,
+        ):
+
+            candidate = marker_pos - d * normal
+            point = ShapelyPoint(*candidate)
+
+            # Must be inside allowed region
+            if allowed_region is not None:
+                if not allowed_region.contains(point):
+                    continue
+
+            # Must not overlap drawing
+            if drawing.contains(point):
+                continue
+
+            travel = np.linalg.norm(candidate - robot)
+
+            if travel < best_distance:
+
+                heading = np.arctan2(
+                    marker_pos[1] - candidate[1],
+                    marker_pos[0] - candidate[0],
+                )
+
+                best_distance = travel
+
+                print("marker", marker_id)
+                print("distance", d)
+
+                best = Pose(
+                    x=candidate[0],
+                    y=candidate[1],
+                    headingDegrees=heading * (180 / math.pi),
+                )
+
+    return best
+
+
+def estimate_final_pose(commands, start_pose):
+    """
+    Replay commands without moving the robot.
+    Returns final x, y, yaw.
+    """
+
+    x = start_pose.x
+    y = start_pose.y
+    yaw = start_pose.headingDegrees * math.pi / 180
+
+    for cmd in commands:
+
+        if isinstance(cmd, LineCommand):
+            if cmd.penDown:
+                # Move forward in current heading
+                distance = cmd.distance / 10  # same conversion as your code if needed
+
+                x += distance * math.cos(yaw)
+                y += distance * math.sin(yaw)
+
+            else:
+                # Pen-up movement is still movement
+                distance = cmd.distance / 10
+
+                x += distance * math.cos(yaw)
+                y += distance * math.sin(yaw)
+
+        elif isinstance(cmd, SpinCommand):
+            yaw += math.radians(cmd.degrees)
+
+        elif isinstance(cmd, ArcCommand):
+            # Arc math
+            radius = cmd.radius
+
+            angle = math.radians(cmd.degrees)
+
+            # center of rotation
+            cx = x - radius * math.sin(yaw)
+            cy = y + radius * math.cos(yaw)
+
+            yaw += angle
+
+            x = cx + radius * math.sin(yaw)
+            y = cy - radius * math.cos(yaw)
+
+    return Pose(
+        x=x,
+        y=y,
+        headingDegrees=yaw * 180 / math.pi,
+    )
 
 
 def execute_commands(commands: list[DrawingCommand]) -> None:
@@ -382,6 +517,7 @@ class ServerClient:
                 y=body["navigateTo"]["y"],
                 headingDegrees=body["navigateTo"].get("headingDegrees", 0.0),
             ),
+            strokes=body["strokes"],
             commands=[_parse_command(c) for c in body["commands"]],
             exitPath=[_parse_command(c) for c in body.get("exitPath", [])],
         )
@@ -416,12 +552,17 @@ def run(client: ServerClient) -> None:
             if job is None:
                 time.sleep(config.poll_interval_seconds)
 
+        exit_location = compute_exit_pose(job.strokes, marker_map)
+        print("found exit location", exit_location)
         # --- Draw -----------------------------------------------------------
         print(f"[{config.name}] drawing {job.jobId} ({len(job.commands)} commands)")
         print(job.navigateTo)
         navigate_to(job.navigateTo, pose)
         execute_commands(job.commands)
-        execute_commands(job.exitPath)
+        new_pose = estimate_final_pose(job.commands, job.navigateTo)
+        print("new pose", new_pose)
+        if exit_location:
+            navigate_to(exit_location, new_pose)
         # loop back to Locate
 
 
