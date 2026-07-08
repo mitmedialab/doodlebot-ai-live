@@ -475,7 +475,7 @@ def run(client: ServerClient) -> None:
         print(job.navigateTo)
         navigate_to(job.navigateTo, pose)
         execute_commands(job.commands)
-        execute_commands(job.exitPath)
+        # execute_commands(job.exitPath)
         # loop back to Locate
 
 
