@@ -77,10 +77,13 @@ class Config:
 # --------------------------------------------------------------------------- #
 
 
+
 @dataclass
 class Point:
     x: float
     y: float
+
+Stroke = list[Point]
 
 
 @dataclass
@@ -126,7 +129,8 @@ class DrawJob:
     jobId: str
     navigateTo: Pose
     commands: list[DrawingCommand]
-    exitPath: list[DrawingCommand] = field(default_factory=list)
+    strokes: list[Stroke]
+    exitPose: Optional[Pose] = None
 
 
 def _parse_command(raw: dict) -> DrawingCommand:
@@ -409,8 +413,9 @@ class ServerClient:
                 y=body["navigateTo"]["y"],
                 headingDegrees=body["navigateTo"].get("headingDegrees", 0.0),
             ),
+            strokes=body["strokes"]
             commands=[_parse_command(c) for c in body["commands"]],
-            exitPath=[_parse_command(c) for c in body.get("exitPath", [])],
+            exitPose=body.get("exitPose", None),
         )
 
 
