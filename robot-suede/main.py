@@ -326,22 +326,36 @@ class ServerClient:
         return f"{self._config.server_url.rstrip('/')}{path}"
 
     def fetch_markers(self) -> dict[str, dict[str, float]]:
-        """``GET /api/robots/markers`` — the Locate step's known marker layout."""
-        resp = self._session.get(
-            self._url(f"/api/robots/markers?robot={robot}"), timeout=10
-        )
-        resp.raise_for_status()
-        print(resp.json()["markers"])
-        return {
-            str(m["id"]): {
-                "x": m["position"]["x"],
-                "y": m["position"]["y"],
-                "z": 0,
-                "yaw": m["yawRadians"],
-                "size": m["sizeMm"] / 1000,
+        """GET /api/robots/markers — the Locate step's known marker layout."""
+
+        try:
+            resp = self._session.get(
+                self._url(f"/api/robots/markers?robot={robot}"),
+                timeout=10,
+            )
+            resp.raise_for_status()
+
+            markers = resp.json()["markers"]
+            print(markers)
+
+            return {
+                str(m["id"]): {
+                    "x": m["position"]["x"],
+                    "y": m["position"]["y"],
+                    "z": 0,
+                    "yaw": m["yawRadians"],
+                    "size": m["sizeMm"] / 1000,
+                }
+                for m in markers
             }
-            for m in resp.json()["markers"]
-        }
+
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to fetch markers: {e}")
+            return {}
+
+        except (KeyError, ValueError) as e:
+            print(f"Invalid marker response: {e}")
+            return {}
 
     def check_in(
         self,
@@ -404,15 +418,28 @@ def run(client: ServerClient) -> None:
 
     while True:
         # --- Locate ---------------------------------------------------------
-        pose = estimate_pose()
-        while not pose:
-            execute_commands([SpinCommand(degrees=10)])
-            pose = estimate_pose()
-
-        # --- Poll -----------------------------------------------------------
+        pose = None
         job: Optional[DrawJob] = None
-        while job is None:
-            job = client.check_in("ready", pose)
+
+        while pose is None or job is None:
+
+            marker_map = client.fetch_markers()
+
+            setup_aruco_client(hostname, marker_map)
+
+            # Try to localize
+            new_pose = estimate_pose()
+            if new_pose is not None:
+                pose = new_pose
+            else:
+                execute_commands([SpinCommand(degrees=10)])
+
+            # Poll for a job if we have a pose
+            if pose is not None:
+                new_job = client.check_in("ready", pose)
+                if new_job is not None:
+                    job = new_job
+
             if job is None:
                 time.sleep(config.poll_interval_seconds)
 
