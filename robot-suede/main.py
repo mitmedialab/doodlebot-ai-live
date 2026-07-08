@@ -453,7 +453,7 @@ def run(client: ServerClient) -> None:
                     alternate = False
                 else:
                     print("love")
-                    display("(d,o)")
+                    display("(d,O)")
                     alternate = True
 
             # Poll for a job if we have a pose
