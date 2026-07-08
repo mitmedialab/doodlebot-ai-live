@@ -129,7 +129,6 @@ class DrawJob:
     jobId: str
     navigateTo: Pose
     commands: list[DrawingCommand]
-    strokes: list[Stroke]
     exitPose: Optional[Pose] = None
 
 
@@ -413,7 +412,6 @@ class ServerClient:
                 y=body["navigateTo"]["y"],
                 headingDegrees=body["navigateTo"].get("headingDegrees", 0.0),
             ),
-            strokes=body["strokes"],
             commands=[_parse_command(c) for c in body["commands"]],
             exitPose=body.get("exitPose", None),
         )
