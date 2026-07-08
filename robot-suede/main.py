@@ -48,6 +48,7 @@ WEBSOCKET_PORT = 8765
 
 
 def display(cmd):
+    print(hostname)
     uri = f"ws://{hostname}.direct.mitlivinglab.org/api/v1/command"
 
     with connect(uri) as ws:
