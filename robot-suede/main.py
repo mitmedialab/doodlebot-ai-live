@@ -19,10 +19,11 @@ from typing import Literal, Optional, Union
 import socket
 import math
 import requests
+from websockets.sync.client import connect
 import numpy as np
 
 HOST = "127.0.0.1"
-PORT = 5000
+BLE_PORT = 5000
 
 robot = None
 marker_map = None
@@ -30,7 +31,7 @@ marker_map = None
 
 def send(msg):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((HOST, PORT))
+        s.connect((HOST, BLE_PORT))
         s.sendall(("fromDoodlebotAILive|" + msg + "\n").encode())
 
         while True:
@@ -41,6 +42,17 @@ def send(msg):
 
             if b"ms" in data:
                 return
+
+
+WEBSOCKET_PORT = 8765
+
+
+def display(cmd):
+    uri = f"ws://{HOST}:{WEBSOCKET_PORT}"
+
+    with connect(uri) as ws:
+        ws.send(cmd)
+        return ws.recv()
 
 
 # --------------------------------------------------------------------------- #
@@ -149,7 +161,7 @@ class DetectedMarker:
     corners: list[Point]
 
 
-def wait_for_server(host=HOST, port=PORT, timeout=60, interval=0.5):
+def wait_for_server(host=HOST, port=BLE_PORT, timeout=60, interval=0.5):
     start = time.time()
 
     while True:
@@ -416,6 +428,7 @@ class ServerClient:
 def run(client: ServerClient) -> None:
     """Run the Locate → Poll → Draw loop forever."""
 
+    alternate = True
     while True:
         # --- Locate ---------------------------------------------------------
         pose = None
@@ -433,6 +446,12 @@ def run(client: ServerClient) -> None:
                 pose = new_pose
             else:
                 execute_commands([SpinCommand(degrees=10)])
+                if alternate:
+                    display("(d,a)")
+                    alternate = False
+                else:
+                    display("(d,o)")
+                    alternate = True
 
             # Poll for a job if we have a pose
             if pose is not None:
