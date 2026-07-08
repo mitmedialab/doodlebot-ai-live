@@ -493,5 +493,5 @@ if __name__ == "__main__":
     marker_map = client.fetch_markers()
 
     setup_aruco_client(hostname, marker_map)
-
+    display("(d,h)")
     run(client)
