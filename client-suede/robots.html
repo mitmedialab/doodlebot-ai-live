@@ -536,6 +536,20 @@
         </div>
 
         <div class="btn-row">
+          <button class="ghost" onclick="exportConfig()">Export config</button>
+          <button class="ghost" onclick="document.getElementById('importFile').click()">
+            Import config
+          </button>
+          <input
+            type="file"
+            id="importFile"
+            accept="application/json,.json"
+            style="display: none"
+            onchange="importConfig(this)"
+          />
+        </div>
+
+        <div class="btn-row">
           <button class="gold" onclick="saveCanvas()">Save canvas</button>
           <button class="danger" onclick="clearDrawings()">Clear drawings</button>
           <button class="danger" onclick="deleteCanvas()">Delete canvas</button>
@@ -845,6 +859,11 @@
         });
         // bots that live on this canvas (matched by region id)
         const regionIds = new Set((c.regions || []).map((r) => r.id));
+        // Robot body geometry, all measured in mm from the pen (= reported pose).
+        const NOSE_AHEAD = 76; // nose is 76mm in front of the pen
+        const CAM_AHEAD = 51; // camera sits between pen and nose
+        const TAIL_BEHIND = 226 - NOSE_AHEAD; // total length 226mm → 150mm behind pen
+        const HALF_WHEEL = 149 / 2; // wheel axle spans 149mm across the pen
         (bots || [])
           .filter((b) => b.region && regionIds.has(b.region))
           .forEach((b) => {
@@ -856,20 +875,40 @@
                   : b.status === "ready"
                     ? "#2d7d46"
                     : "#c79a2e";
-              // Arrow for heading
               const rad = (b.pose.headingDegrees * Math.PI) / 180;
-              const arrowLen = fs * 1.4;
-              const ax = b.pose.x + Math.cos(rad) * arrowLen;
-              const ay = b.pose.y + Math.sin(rad) * arrowLen;
+              const fx = Math.cos(rad), fy = Math.sin(rad); // forward (heading) unit
+              const rx = -Math.sin(rad), ry = Math.cos(rad); // rightward unit
+              const pen = { x: b.pose.x, y: b.pose.y };
+              const along = (d) => ({ x: pen.x + fx * d, y: pen.y + fy * d });
+              const nose = along(NOSE_AHEAD);
+              const tail = along(-TAIL_BEHIND);
+              const cam = along(CAM_AHEAD);
+              const wheelL = { x: pen.x + rx * HALF_WHEEL, y: pen.y + ry * HALF_WHEEL };
+              const wheelR = { x: pen.x - rx * HALF_WHEEL, y: pen.y - ry * HALF_WHEEL };
 
+              // Spine (tail → nose) and wheel axle (across the pen) — the "t".
               parts.push(
-                `<line x1="${b.pose.x}" y1="${b.pose.y}" x2="${ax}" y2="${ay}" stroke="${color}" stroke-width="${sw * 1.5}" marker-end="url(#arrowhead)"/>`,
+                `<line x1="${tail.x}" y1="${tail.y}" x2="${nose.x}" y2="${nose.y}" stroke="${color}" stroke-width="${sw * 1.5}" stroke-linecap="round"/>`,
               );
               parts.push(
-                `<circle cx="${b.pose.x}" cy="${b.pose.y}" r="${fs * 0.7}" fill="${color}" stroke="#fff" stroke-width="${sw}"/>`,
+                `<line x1="${wheelL.x}" y1="${wheelL.y}" x2="${wheelR.x}" y2="${wheelR.y}" stroke="${color}" stroke-width="${sw * 1.5}" stroke-linecap="round"/>`,
+              );
+
+              // Camera as a triangle pointing along the heading.
+              const TRI = 34; // mm
+              const apex = { x: cam.x + fx * TRI * 0.6, y: cam.y + fy * TRI * 0.6 };
+              const cL = { x: cam.x - fx * TRI * 0.4 + rx * TRI * 0.5, y: cam.y - fy * TRI * 0.4 + ry * TRI * 0.5 };
+              const cR = { x: cam.x - fx * TRI * 0.4 - rx * TRI * 0.5, y: cam.y - fy * TRI * 0.4 - ry * TRI * 0.5 };
+              parts.push(
+                `<polygon points="${apex.x},${apex.y} ${cL.x},${cL.y} ${cR.x},${cR.y}" fill="${color}" stroke="#fff" stroke-width="${sw * 0.5}"/>`,
+              );
+
+              // Pen location (the reported pose) as a small dot.
+              parts.push(
+                `<circle cx="${pen.x}" cy="${pen.y}" r="${sw * 2.2}" fill="#fff" stroke="${color}" stroke-width="${sw}"/>`,
               );
               parts.push(
-                `<text x="${b.pose.x + fs * 0.9}" y="${b.pose.y + fs * 0.4}" font-size="${fs * 0.8}" font-family="monospace" fill="#222">${escSvg(b.name)}</text>`,
+                `<text x="${pen.x + fs * 0.9}" y="${pen.y + fs * 0.4}" font-size="${fs * 0.8}" font-family="monospace" fill="#222">${escSvg(b.name)}</text>`,
               );
           });
         parts.push("</svg>");
@@ -961,26 +1000,102 @@
         editorToast(`Generated ${rows * cols} regions`, true);
       }
 
+      /**
+       * Populate the whole editor from a canvas config object. Accepts both the
+       * server shape (from GET /api/robots/canvases, no `placement`) and the
+       * exported payload shape (from buildCanvasPayload, with `placement`).
+       * Placement fields are only touched when the config carries them, so
+       * loading a server canvas leaves the current placement settings intact.
+       * @param {any} cfg
+       */
+      function applyCanvasConfig(cfg) {
+        if (cfg.id != null) document.getElementById("cId").value = cfg.id;
+        if (cfg.width != null) document.getElementById("cW").value = cfg.width;
+        if (cfg.height != null) document.getElementById("cH").value = cfg.height;
+
+        const p = cfg.placement;
+        if (p) {
+          const set = (id, v) => {
+            if (v != null) document.getElementById(id).value = v;
+          };
+          set("pCell", p.cellMm);
+          set("pPen", p.penMm);
+          set("pClear", p.clearanceMm);
+          set("pStep", p.searchStepCells);
+          set("pAngle", p.angleStepDeg);
+          if (p.strategy != null)
+            document.getElementById("pStrategy").value = p.strategy;
+          set("pTargetFootprint", p.targetFootprintMm);
+          set("pMinScale", p.minFootprintScale);
+        }
+
+        document.getElementById("markersList").innerHTML = "";
+        (cfg.markers || []).forEach((m) =>
+          addMarkerRow({
+            id: m.id,
+            x: m.position ? m.position.x : m.x,
+            y: m.position ? m.position.y : m.y,
+            sizeMm: m.sizeMm,
+          }),
+        );
+        document.getElementById("regionsList").innerHTML = "";
+        (cfg.regions || []).forEach((r) => addRegionRow(r));
+      }
+
       /** Populate the editor from a canvas returned by the server. */
       function loadSelected() {
         const id = document.getElementById("loadSelect").value;
         const c = (window._canvases || []).find((x) => x.id === id);
         if (!c) return;
-        document.getElementById("cId").value = c.id;
-        document.getElementById("cW").value = c.width;
-        document.getElementById("cH").value = c.height;
-        document.getElementById("markersList").innerHTML = "";
-        (c.markers || []).forEach((m) =>
-          addMarkerRow({
-            id: m.id,
-            x: m.position.x,
-            y: m.position.y,
-            sizeMm: m.sizeMm,
-          }),
+        applyCanvasConfig(c);
+        editorToast(
+          `Loaded "${c.id}"${c.placement ? "" : " (placement defaults apply)"}`,
+          true,
         );
-        document.getElementById("regionsList").innerHTML = "";
-        (c.regions || []).forEach((r) => addRegionRow(r));
-        editorToast(`Loaded "${c.id}" (placement defaults apply)`, true);
+      }
+
+      /** Download the current editor state as a complete JSON config file. */
+      function exportConfig() {
+        const payload = buildCanvasPayload();
+        if (!payload.id) return editorToast("Canvas id is required", false);
+        const blob = new Blob([JSON.stringify(payload, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${payload.id}.canvas.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        editorToast(`Exported "${payload.id}"`, true);
+      }
+
+      /**
+       * Load a complete config from a chosen JSON file into the editor. Does not
+       * save — the user reviews the populated fields and clicks Save canvas.
+       * @param {HTMLInputElement} input
+       */
+      function importConfig(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const cfg = JSON.parse(/** @type {string} */ (reader.result));
+            applyCanvasConfig(cfg);
+            editorToast(
+              `Imported "${cfg.id || file.name}" — review, then Save canvas`,
+              true,
+            );
+          } catch (e) {
+            editorToast("Import failed: " + e.message, false);
+          }
+        };
+        reader.onerror = () => editorToast("Could not read file", false);
+        reader.readAsText(file);
+        input.value = ""; // let the same file be re-imported later
       }
 
       /** @returns {object} CanvasConfig payload for POST /api/robots/canvases */
