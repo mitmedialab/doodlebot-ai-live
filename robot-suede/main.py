@@ -448,9 +448,11 @@ def run(client: ServerClient) -> None:
             else:
                 execute_commands([SpinCommand(degrees=10)])
                 if alternate:
+                    print("anger")
                     display("(d,a)")
                     alternate = False
                 else:
+                    print("love")
                     display("(d,o)")
                     alternate = True
 
