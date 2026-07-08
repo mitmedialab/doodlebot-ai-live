@@ -77,11 +77,11 @@ class Config:
 # --------------------------------------------------------------------------- #
 
 
-
 @dataclass
 class Point:
     x: float
     y: float
+
 
 Stroke = list[Point]
 
@@ -413,7 +413,7 @@ class ServerClient:
                 y=body["navigateTo"]["y"],
                 headingDegrees=body["navigateTo"].get("headingDegrees", 0.0),
             ),
-            strokes=body["strokes"]
+            strokes=body["strokes"],
             commands=[_parse_command(c) for c in body["commands"]],
             exitPose=body.get("exitPose", None),
         )
