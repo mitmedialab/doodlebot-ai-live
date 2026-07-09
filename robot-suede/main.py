@@ -527,6 +527,7 @@ def run(client: ServerClient) -> None:
         execute_commands(job.commands)
         new_pose = estimate_final_pose(job.commands, job.navigateTo)
         print("new pose", new_pose)
+        print("exit pose", job.exitPose)
         if job.exitPose:
             navigate_to(job.exitPose, new_pose)
 
