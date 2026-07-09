@@ -524,10 +524,8 @@ def run(client: ServerClient) -> None:
         print(f"[{config.name}] drawing {job.jobId} ({len(job.commands)} commands)")
         print(job.navigateTo)
         navigate_to(job.navigateTo, pose)
-        # execute_commands(job.commands)
+        execute_commands(job.commands)
         new_pose = estimate_final_pose(job.commands, job.navigateTo)
-        print("new pose", new_pose)
-        print("exit pose", job.exitPose)
         if job.exitPose:
             navigate_to(
                 Pose(
