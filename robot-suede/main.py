@@ -205,7 +205,7 @@ def wait_for_aruco_setup(robot_name, timeout=60, interval=1.0):
 
 def setup_aruco_client(robot_name, marker_map):
     response = requests.post(
-        f"http://{robot_name}.direct.mitlivinglab.org:8001/aruco/setup",
+        f"http://127.0.0.1:8001/aruco/setup",
         json={"robot_name": robot_name, "marker_map": marker_map},
     )
     print("Status:", response.status_code)
