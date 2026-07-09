@@ -48,10 +48,9 @@ WEBSOCKET_PORT = 8765
 
 
 def display(cmd):
-    return
-    
+
     print(hostname)
-    uri = f"ws://{hostname}.direct.mitlivinglab.org/api/v1/command"
+    uri = f"ws://localhost:8765"
 
     with connect(uri) as ws:
         ws.send(cmd)
@@ -216,9 +215,7 @@ def setup_aruco_client(robot_name, marker_map):
 def estimate_pose() -> Pose | None:
 
     try:
-        resp = requests.get(
-            f"http://127.0.0.1:8001/aruco/position", timeout=1.0
-        )
+        resp = requests.get(f"http://127.0.0.1:8001/aruco/position", timeout=1.0)
         data = resp.json()
 
         print(data)
