@@ -180,7 +180,7 @@ def wait_for_server(host=HOST, port=BLE_PORT, timeout=60, interval=0.5):
 
 
 def wait_for_aruco_setup(robot_name, timeout=60, interval=1.0):
-    url = f"http://{robot_name}.direct.mitlivinglab.org:8001/aruco/setup"
+    url = f"http://127.0.0.1:8001/aruco/setup"
 
     start = time.time()
 
@@ -215,7 +215,7 @@ def estimate_pose() -> Pose | None:
 
     try:
         resp = requests.get(
-            f"http://{robot}.direct.mitlivinglab.org:8001/aruco/position", timeout=1.0
+            f"http://127.0.0.1:8001/aruco/position", timeout=1.0
         )
         data = resp.json()
 
