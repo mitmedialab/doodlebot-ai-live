@@ -529,7 +529,14 @@ def run(client: ServerClient) -> None:
         print("new pose", new_pose)
         print("exit pose", job.exitPose)
         if job.exitPose:
-            navigate_to(job.exitPose, new_pose)
+            navigate_to(
+                Pose(
+                    x=job.exitPose["x"],
+                    y=job.exitPose["y"],
+                    headingDegrees=job.exitPose["headingDegrees"],
+                ),
+                new_pose,
+            )
 
 
 if __name__ == "__main__":
