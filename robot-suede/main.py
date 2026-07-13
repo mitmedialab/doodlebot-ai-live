@@ -19,6 +19,7 @@ from typing import Literal, Optional, Union
 import socket
 import math
 import requests
+from collections import deque
 from websockets.sync.client import connect
 import numpy as np
 
@@ -479,6 +480,35 @@ class ServerClient:
 #     # return estimate_pose(markers)
 #     return estimate_pose()
 
+POSE_WINDOW = 3
+
+recent_poses = deque(maxlen=POSE_WINDOW)
+
+
+def angle_diff(a, b):
+    """Smallest difference between two headings in degrees."""
+    return abs((a - b + 180) % 360 - 180)
+
+
+def poses_consistent(poses, position_tolerance=10, angle_tolerance=10):
+    if len(poses) < POSE_WINDOW:
+        return False
+
+    xs = [p.x for p in poses]
+    ys = [p.y for p in poses]
+    headings = [p.heading for p in poses]
+
+    return (
+        max(xs) - min(xs) <= position_tolerance
+        and max(ys) - min(ys) <= position_tolerance
+        and max(
+            angle_diff(headings[i], headings[j])
+            for i in range(POSE_WINDOW)
+            for j in range(i + 1, POSE_WINDOW)
+        )
+        <= angle_tolerance
+    )
+
 
 def run(client: ServerClient) -> None:
     """Run the Locate → Poll → Draw loop forever."""
@@ -498,8 +528,13 @@ def run(client: ServerClient) -> None:
             # Try to localize
             new_pose = estimate_pose()
             if new_pose is not None:
-                pose = new_pose
+                recent_poses.append(new_pose)
+
+                if poses_consistent(recent_poses):
+                    pose = recent_poses[-1]
+                    recent_poses.clear()  # optional
             else:
+                recent_poses.clear()
                 execute_commands([SpinCommand(degrees=10)])
                 if alternate:
                     print("anger")
