@@ -490,7 +490,7 @@ def angle_diff(a, b):
     return abs((a - b + 180) % 360 - 180)
 
 
-def poses_consistent(poses, position_tolerance=10, angle_tolerance=10):
+def poses_consistent(poses, position_tolerance=10, angle_tolerance=2):
     if len(poses) < POSE_WINDOW:
         return False
 
@@ -531,7 +531,19 @@ def run(client: ServerClient) -> None:
                 recent_poses.append(new_pose)
 
                 if poses_consistent(recent_poses):
-                    pose = recent_poses[-1]
+                    avg_x = sum(p.x for p in recent_poses) / len(recent_poses)
+                    avg_y = sum(p.y for p in recent_poses) / len(recent_poses)
+
+                    # Average heading correctly
+                    sin_sum = sum(
+                        math.sin(math.radians(p.headingDegrees)) for p in recent_poses
+                    )
+                    cos_sum = sum(
+                        math.cos(math.radians(p.headingDegrees)) for p in recent_poses
+                    )
+
+                    avg_heading = math.degrees(math.atan2(sin_sum, cos_sum))
+                    pose = Pose(x=avg_x, y=avg_y, headingDegrees=avg_heading)
                     recent_poses.clear()  # optional
             else:
                 recent_poses.clear()
