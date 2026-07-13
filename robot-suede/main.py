@@ -480,7 +480,7 @@ class ServerClient:
 #     # return estimate_pose(markers)
 #     return estimate_pose()
 
-POSE_WINDOW = 3
+POSE_WINDOW = 7
 
 recent_poses = deque(maxlen=POSE_WINDOW)
 
@@ -563,8 +563,12 @@ def run(client: ServerClient) -> None:
                 if new_job is not None:
                     job = new_job
 
-            if job is None:
-                time.sleep(config.poll_interval_seconds)
+            if pose is None:
+                if len(recent_poses) < POSE_WINDOW:
+                    time.sleep(0.1)
+            else:
+                if job is None:
+                    time.sleep(config.poll_interval_seconds)
 
         # --- Draw -----------------------------------------------------------
         print(f"[{config.name}] drawing {job.jobId} ({len(job.commands)} commands)")
