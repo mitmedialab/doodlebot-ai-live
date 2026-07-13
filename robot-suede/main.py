@@ -496,7 +496,7 @@ def poses_consistent(poses, position_tolerance=10, angle_tolerance=10):
 
     xs = [p.x for p in poses]
     ys = [p.y for p in poses]
-    headings = [p.heading for p in poses]
+    headings = [p.headingDegrees for p in poses]
 
     return (
         max(xs) - min(xs) <= position_tolerance
