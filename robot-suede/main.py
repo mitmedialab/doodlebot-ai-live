@@ -490,7 +490,7 @@ def angle_diff(a, b):
     return abs((a - b + 180) % 360 - 180)
 
 
-def poses_consistent(poses, position_tolerance=10, angle_tolerance=2):
+def poses_consistent(poses, position_tolerance=50, angle_tolerance=5):
     if len(poses) < POSE_WINDOW:
         return False
 
