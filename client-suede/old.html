@@ -1,0 +1,986 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+    <title>Sketch</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400&family=Playfair+Display:ital@1&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --phone: #888;
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+        background: #111;
+        font-family: "DM Mono", monospace;
+        color: #f5f0e8;
+        overflow: hidden;
+      }
+
+      /* ── Overlays ── */
+      #flashOverlay {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 300;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      #selectionRing {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 299;
+        opacity: 0;
+        transition: opacity 0.4s;
+        border: 8px solid var(--phone);
+      }
+
+      /* ── Header ── */
+      #header {
+        height: 44px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0 1rem;
+        background: #0a0a0a;
+        border-bottom: 1px solid #1e1e1e;
+      }
+      #phoneChip {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--phone);
+        flex-shrink: 0;
+      }
+      #phoneLabel {
+        font-size: 0.58rem;
+        color: #444;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+      #statusBadge {
+        margin-left: auto;
+        font-size: 0.55rem;
+        color: #444;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+
+      /* ── Screens — each takes full remaining height ── */
+      .screen {
+        display: none;
+        flex-direction: column;
+        height: calc(100% - 44px);
+      }
+      .screen.active {
+        display: flex;
+      }
+
+      /* ════════════════════════════════════════
+     MODE PICKER SCREEN
+  ════════════════════════════════════════ */
+      #pickerScreen {
+        padding: 1.5rem 1.2rem;
+        gap: 1rem;
+        justify-content: center;
+      }
+
+      .mode-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.8rem;
+        background: #0d0d0d;
+        border: 2px solid #222;
+        cursor: pointer;
+        transition:
+          border-color 0.15s,
+          background 0.15s;
+        -webkit-tap-highlight-color: transparent;
+        min-height: 0;
+      }
+      .mode-btn:active {
+        background: #181818;
+        border-color: var(--phone);
+      }
+
+      .mode-icon {
+        font-size: 2.8rem;
+        line-height: 1;
+      }
+      .mode-label {
+        font-size: 0.7rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #666;
+      }
+
+      /* ════════════════════════════════════════
+     DRAW SCREEN
+  ════════════════════════════════════════ */
+      #drawScreen {
+        position: relative;
+      }
+
+      /* toolbar pinned at top */
+      #drawToolbar {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.5rem 0.7rem;
+        background: #0a0a0a;
+        border-bottom: 1px solid #1e1e1e;
+      }
+      .tool-btn {
+        font-family: "DM Mono", monospace;
+        font-size: 0.58rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1.5px solid #2a2a2a;
+        background: transparent;
+        color: #555;
+        padding: 0.35rem 0.55rem;
+        cursor: pointer;
+        transition: all 0.12s;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .tool-btn.active {
+        border-color: #f5f0e8;
+        color: #f5f0e8;
+      }
+
+      .sz-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        border: 1.5px solid #2a2a2a;
+        background: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.12s;
+      }
+      .sz-btn.active {
+        border-color: #f5f0e8;
+        background: #1e1e1e;
+      }
+      .sz-dot {
+        border-radius: 50%;
+        background: #444;
+      }
+      .sz-btn.active .sz-dot {
+        background: #f5f0e8;
+      }
+
+      .tb-divider {
+        width: 1px;
+        height: 18px;
+        background: #222;
+        flex-shrink: 0;
+      }
+      .tb-space {
+        flex: 1;
+      }
+
+      /* canvas fills remaining space */
+      #canvasWrap {
+        flex: 1;
+        position: relative;
+        min-height: 0;
+      }
+      #c {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: #fff;
+        touch-action: none;
+        cursor: crosshair;
+      }
+      #sentMsg {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 1rem;
+        letter-spacing: 0.15em;
+        color: #2d7d46;
+        opacity: 0;
+        pointer-events: none;
+        text-transform: uppercase;
+        transition: opacity 0.3s;
+      }
+
+      /* bottom bar pinned at bottom — always visible */
+      #drawBottom {
+        flex-shrink: 0;
+        display: flex;
+        gap: 0.5rem;
+        padding: 0.6rem 0.8rem;
+        background: #0a0a0a;
+        border-top: 1px solid #1e1e1e;
+      }
+      .bottom-btn {
+        font-family: "DM Mono", monospace;
+        font-size: 0.6rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        border: 1.5px solid #2a2a2a;
+        background: transparent;
+        color: #555;
+        padding: 0.55rem 0.9rem;
+        cursor: pointer;
+        transition: all 0.12s;
+      }
+      .bottom-btn:active {
+        border-color: #666;
+        color: #aaa;
+      }
+      #btnSend {
+        flex: 1;
+        border-color: #2d7d46;
+        color: #2d7d46;
+        font-size: 0.65rem;
+      }
+      #btnSend:active,
+      #btnSend:hover {
+        background: #2d7d46;
+        color: #fff;
+      }
+      #btnSend:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+
+      /* ════════════════════════════════════════
+     TEXT SCREEN
+  ════════════════════════════════════════ */
+      #textScreen {
+        gap: 0;
+      }
+
+      #textInputArea {
+        flex-shrink: 0;
+        padding: 1rem;
+        background: #0a0a0a;
+        border-bottom: 1px solid #1e1e1e;
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+      }
+
+      #wordInput {
+        width: 100%;
+        background: #111;
+        border: none;
+        border-bottom: 2px solid #2a2a2a;
+        color: #f5f0e8;
+        font-family: "DM Mono", monospace;
+        font-size: 1.6rem;
+        padding: 0.4rem 0.2rem;
+        outline: none;
+        text-align: center;
+        letter-spacing: 0.04em;
+        transition: border-color 0.15s;
+      }
+      #wordInput:focus {
+        border-bottom-color: var(--phone);
+      }
+      #wordInput::placeholder {
+        color: #2a2a2a;
+        font-size: 1.1rem;
+      }
+
+      #fontGrid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.4rem;
+      }
+      .font-opt {
+        border: 1.5px solid #1e1e1e;
+        background: #111;
+        color: #555;
+        padding: 0.5rem 0.3rem;
+        cursor: pointer;
+        text-align: center;
+        font-size: 1rem;
+        transition: all 0.12s;
+      }
+      .font-opt.active {
+        border-color: var(--phone);
+        color: #f5f0e8;
+      }
+
+      /* preview — hidden until there's text */
+      #textPreviewArea {
+        flex: 1;
+        display: none;
+        flex-direction: column;
+        min-height: 0;
+      }
+      #textPreviewArea.visible {
+        display: flex;
+      }
+
+      #textPreviewWrap {
+        flex: 1;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        min-height: 0;
+      }
+      #textPreview {
+        max-width: 85%;
+        text-align: center;
+        word-break: break-word;
+        color: #1a1a18;
+      }
+
+      #textBottom {
+        flex-shrink: 0;
+        display: flex;
+        gap: 0.5rem;
+        padding: 0.6rem 0.8rem;
+        background: #0a0a0a;
+        border-top: 1px solid #1e1e1e;
+      }
+      #btnTextBack {
+        font-family: "DM Mono", monospace;
+        font-size: 0.6rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        border: 1.5px solid #2a2a2a;
+        background: transparent;
+        color: #555;
+        padding: 0.55rem 0.9rem;
+        cursor: pointer;
+      }
+      #btnTextSend {
+        flex: 1;
+        font-family: "DM Mono", monospace;
+        font-size: 0.65rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        border: 1.5px solid #2d7d46;
+        background: transparent;
+        color: #2d7d46;
+        padding: 0.55rem;
+        cursor: pointer;
+        transition: all 0.12s;
+      }
+      #btnTextSend:active,
+      #btnTextSend:hover {
+        background: #2d7d46;
+        color: #fff;
+      }
+      #btnTextSend:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="flashOverlay"></div>
+    <div id="selectionRing"></div>
+
+    <div id="header">
+      <div id="phoneChip"></div>
+      <span id="phoneLabel">…</span>
+      <span id="statusBadge">ready</span>
+    </div>
+
+    <!-- ── Mode picker ── -->
+    <div id="pickerScreen" class="screen active">
+      <button
+        class="mode-btn"
+        onclick="
+          goTo('drawScreen');
+          initCanvas();
+        "
+      >
+        <span class="mode-icon">✏️</span>
+        <span class="mode-label">Draw</span>
+      </button>
+      <button
+        class="mode-btn"
+        onclick="
+          goTo('textScreen');
+          document.getElementById('wordInput').focus();
+        "
+      >
+        <span class="mode-icon">Aa</span>
+        <span class="mode-label">Write</span>
+      </button>
+    </div>
+
+    <!-- ── Draw screen ── -->
+    <div id="drawScreen" class="screen">
+      <div id="drawToolbar">
+        <button class="tool-btn active" id="btnDraw" onclick="setTool('draw')">
+          Draw
+        </button>
+        <button class="tool-btn" id="btnErase" onclick="setTool('erase')">
+          Erase
+        </button>
+        <div class="tb-divider"></div>
+        <button class="sz-btn active" onclick="setSize(2, this)">
+          <span class="sz-dot" style="width: 3px; height: 3px"></span>
+        </button>
+        <button class="sz-btn" onclick="setSize(6, this)">
+          <span class="sz-dot" style="width: 8px; height: 8px"></span>
+        </button>
+        <button class="sz-btn" onclick="setSize(14, this)">
+          <span class="sz-dot" style="width: 13px; height: 13px"></span>
+        </button>
+        <div class="tb-space"></div>
+        <button class="tool-btn" onclick="undoLast()">Undo</button>
+      </div>
+
+      <div id="canvasWrap">
+        <canvas id="c"></canvas>
+        <div id="sentMsg">Sent ✓</div>
+      </div>
+
+      <div id="drawBottom">
+        <button class="bottom-btn" onclick="clearCanvas()">Clear</button>
+        <button class="bottom-btn" onclick="goTo('pickerScreen')">
+          ← Back
+        </button>
+        <button class="bottom-btn" id="btnSend" onclick="submitDraw()">
+          Send →
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Text screen ── -->
+    <div id="textScreen" class="screen">
+      <div id="textInputArea">
+        <input
+          id="wordInput"
+          type="text"
+          placeholder="type a word…"
+          maxlength="40"
+          oninput="updateTextPreview()"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+        />
+        <div id="fontGrid">
+          <div
+            class="font-opt active"
+            data-font="'DM Mono',monospace"
+            onclick="pickFont(this)"
+            style="font-family: &quot;DM Mono&quot;, monospace"
+          >
+            Mono
+          </div>
+          <div
+            class="font-opt"
+            data-font="'Playfair Display',serif"
+            onclick="pickFont(this)"
+            style="
+              font-family: &quot;Playfair Display&quot;, serif;
+              font-style: italic;
+            "
+          >
+            Serif
+          </div>
+          <div
+            class="font-opt"
+            data-font="Georgia,serif"
+            onclick="pickFont(this)"
+            style="font-family: Georgia, serif; font-weight: bold"
+          >
+            Bold
+          </div>
+          <div
+            class="font-opt"
+            data-font="'Courier New',monospace"
+            onclick="pickFont(this)"
+            style="
+              font-family: &quot;Courier New&quot;, monospace;
+              font-size: 0.8rem;
+            "
+          >
+            Courier
+          </div>
+        </div>
+      </div>
+
+      <!-- preview only appears after typing -->
+      <div id="textPreviewArea">
+        <div id="textPreviewWrap">
+          <div id="textPreview"></div>
+        </div>
+      </div>
+
+      <div id="textBottom">
+        <button
+          id="btnTextBack"
+          onclick="
+            goTo('pickerScreen');
+            document.getElementById('wordInput').value = '';
+            updateTextPreview();
+          "
+        >
+          ← Back
+        </button>
+        <button id="btnTextSend" onclick="submitText()" disabled>Send →</button>
+      </div>
+    </div>
+
+    <script>
+      /** @typedef {{ id: string, color: string }} Identity */
+
+      const MODE = "PROD";
+      const host =
+        MODE === "DEV"
+          ? "http://localhost:5001"
+          : "https://doodlebot.media.mit.edu/live";
+
+      // ── Identity ──────────────────────────────────────────────────────────────────
+      const PALETTE = [
+        "#e74c3c",
+        "#e67e22",
+        "#f1c40f",
+        "#2ecc71",
+        "#1abc9c",
+        "#3498db",
+        "#9b59b6",
+        "#e91e63",
+        "#00bcd4",
+        "#ff5722",
+      ];
+      /** @returns {Identity} */
+      function getIdentity() {
+        let id = localStorage.getItem("sketchPhoneId");
+        let color = localStorage.getItem("sketchPhoneColor");
+        if (!id) {
+          id = "p-" + Math.random().toString(36).slice(2, 6);
+          color = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+          localStorage.setItem("sketchPhoneId", id);
+          localStorage.setItem("sketchPhoneColor", color);
+        }
+        return { id, color };
+      }
+      const me = getIdentity();
+      document.documentElement.style.setProperty("--phone", me.color);
+      document.getElementById("phoneChip").style.background = me.color;
+      document.getElementById("phoneLabel").textContent = me.id;
+
+      // ── Screen navigation ─────────────────────────────────────────────────────────
+      /** @param {string} id */
+      function goTo(id) {
+        document
+          .querySelectorAll(".screen")
+          .forEach((s) => s.classList.remove("active"));
+        document.getElementById(id).classList.add("active");
+      }
+
+      // ── Canvas ────────────────────────────────────────────────────────────────────
+      const canvas = /** @type {HTMLCanvasElement} */ (
+        document.getElementById("c")
+      );
+      const ctx = /** @type {CanvasRenderingContext2D} */ (
+        canvas.getContext("2d")
+      );
+      /** @type {'draw'|'erase'} */
+      let tool = "draw",
+        brushSize = 2;
+      let drawing = false,
+        lastX = 0,
+        lastY = 0,
+        /** @type {ImageData[]} */
+        history = [];
+      let canvasReady = false;
+
+      function initCanvas() {
+        const wrap = canvas.parentElement;
+        canvas.width = wrap.clientWidth;
+        canvas.height = wrap.clientHeight;
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        history = [];
+        canvasReady = true;
+      }
+
+      /** @returns {void} */
+      function saveSnap() {
+        history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+        if (history.length > 40) history.shift();
+      }
+      /** @returns {void} */
+      function undoLast() {
+        if (history.length) ctx.putImageData(history.pop(), 0, 0);
+      }
+      /** @returns {void} */
+      function clearCanvas() {
+        saveSnap();
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      /**
+       * @param {MouseEvent | TouchEvent} e
+       * @returns {[number, number]}
+       */
+      function pos(e) {
+        const r = canvas.getBoundingClientRect();
+        const s = e.touches ? e.touches[0] : e;
+        return [
+          (s.clientX - r.left) * (canvas.width / r.width),
+          (s.clientY - r.top) * (canvas.height / r.height),
+        ];
+      }
+      /** @param {MouseEvent | TouchEvent} e */
+      function startDraw(e) {
+        e.preventDefault();
+        saveSnap();
+        drawing = true;
+        [lastX, lastY] = pos(e);
+      }
+      /** @param {MouseEvent | TouchEvent} e */
+      function doDraw(e) {
+        if (!drawing) return;
+        e.preventDefault();
+        const [x, y] = pos(e);
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.strokeStyle = tool === "erase" ? "#fff" : "#1a1a18";
+        ctx.lineWidth = tool === "erase" ? brushSize * 3 : brushSize;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.stroke();
+        [lastX, lastY] = [x, y];
+      }
+      /** @returns {void} */
+      function endDraw() {
+        drawing = false;
+      }
+
+      canvas.addEventListener("mousedown", startDraw);
+      canvas.addEventListener("mousemove", doDraw);
+      canvas.addEventListener("mouseup", endDraw);
+      canvas.addEventListener("mouseleave", endDraw);
+      canvas.addEventListener("touchstart", startDraw, { passive: false });
+      canvas.addEventListener("touchmove", doDraw, { passive: false });
+      canvas.addEventListener("touchend", endDraw);
+
+      /** @param {'draw'|'erase'} t */
+      function setTool(t) {
+        tool = t;
+        document
+          .getElementById("btnDraw")
+          .classList.toggle("active", t === "draw");
+        document
+          .getElementById("btnErase")
+          .classList.toggle("active", t === "erase");
+      }
+      /**
+       * @param {number} s
+       * @param {HTMLElement} btn
+       */
+      function setSize(s, btn) {
+        brushSize = s;
+        document
+          .querySelectorAll(".sz-btn")
+          .forEach((b) => b.classList.remove("active"));
+        if (btn) btn.classList.add("active");
+      }
+
+      // ── Text ──────────────────────────────────────────────────────────────────────
+      let chosenFont = "'DM Mono',monospace";
+
+      /** @param {HTMLElement} el */
+      function pickFont(el) {
+        document
+          .querySelectorAll(".font-opt")
+          .forEach((e) => e.classList.remove("active"));
+        el.classList.add("active");
+        chosenFont = el.dataset.font;
+        updateTextPreview();
+      }
+
+      /** @returns {void} */
+      function updateTextPreview() {
+        const val = /** @type {HTMLInputElement} */ (
+          document.getElementById("wordInput")
+        ).value.trim();
+        const area = document.getElementById("textPreviewArea");
+        const prev = document.getElementById("textPreview");
+        const btn = /** @type {HTMLButtonElement} */ (
+          document.getElementById("btnTextSend")
+        );
+
+        if (!val) {
+          area.classList.remove("visible");
+          btn.disabled = true;
+          return;
+        }
+
+        area.classList.add("visible");
+        btn.disabled = false;
+
+        prev.textContent = val;
+        prev.style.fontFamily = chosenFont;
+        const len = val.length;
+        prev.style.fontSize =
+          len > 20 ? "1.4rem" : len > 12 ? "2rem" : len > 6 ? "3rem" : "4rem";
+      }
+
+      /**
+       * @param {string} text
+       * @param {string} fontFamily
+       * @returns {string} a data URL
+       */
+      function textToCanvas(text, fontFamily) {
+        const c = document.createElement("canvas");
+        c.width = 800;
+        c.height = 800;
+        const cx = c.getContext("2d");
+        cx.fillStyle = "#ffffff";
+        cx.fillRect(0, 0, 800, 800);
+        cx.fillStyle = "#1a1a18";
+        const len = text.length;
+        const size = len > 20 ? 55 : len > 12 ? 80 : len > 6 ? 110 : 150;
+        cx.font = `${size}px ${fontFamily}`;
+        cx.textAlign = "center";
+        cx.textBaseline = "middle";
+        // simple word wrap
+        const words = text.split(" ");
+        const lines = [];
+        let line = "";
+        words.forEach((w) => {
+          const test = line ? line + " " + w : w;
+          if (test.length > 14 && line) {
+            lines.push(line);
+            line = w;
+          } else line = test;
+        });
+        lines.push(line);
+        const lineH = size * 1.3;
+        const startY = 400 - ((lines.length - 1) * lineH) / 2;
+        lines.forEach((l, i) => cx.fillText(l, 400, startY + i * lineH));
+        return c.toDataURL("image/png");
+      }
+
+      // ── Submit ────────────────────────────────────────────────────────────────────
+      /** @param {string} s */
+      function setStatus(s) {
+        document.getElementById("statusBadge").textContent = s;
+      }
+
+      /**
+       * @param {string} dataUrl
+       * @param {'drawing'|'text'} kind
+       * @returns {Promise<any>}
+       */
+      async function doSubmit(dataUrl, kind) {
+        const res = await fetch(`${host}/api/submit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            image: dataUrl,
+            phoneId: me.id,
+            phoneColor: me.color,
+            kind,
+          }),
+        });
+        return res.json();
+      }
+
+      // Crop to drawn content bounding box, then pad 8% around it, export as square
+      /**
+       * @param {HTMLCanvasElement} src
+       * @returns {string}
+       */
+      function squarePad(src) {
+        const cx = src.getContext("2d");
+        const data = cx.getImageData(0, 0, src.width, src.height).data;
+
+        let minX = src.width,
+          maxX = 0,
+          minY = src.height,
+          maxY = 0;
+        for (let y = 0; y < src.height; y++) {
+          for (let x = 0; x < src.width; x++) {
+            const i = (y * src.width + x) * 4;
+            // consider a pixel "drawn" if it's dark (not white/near-white)
+            if (data[i] < 240 || data[i + 1] < 240 || data[i + 2] < 240) {
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+            }
+          }
+        }
+
+        // nothing drawn — fall back to full canvas
+        if (maxX < minX) {
+          minX = 0;
+          maxX = src.width - 1;
+          minY = 0;
+          maxY = src.height - 1;
+        }
+
+        const contentW = maxX - minX + 1;
+        const contentH = maxY - minY + 1;
+        const pad = Math.round(Math.max(contentW, contentH) * 0.1);
+
+        const cropX = Math.max(0, minX - pad);
+        const cropY = Math.max(0, minY - pad);
+        const cropW = Math.min(src.width, maxX + pad + 1) - cropX;
+        const cropH = Math.min(src.height, maxY + pad + 1) - cropY;
+
+        // export as square, centering the crop inside it
+        const size = Math.max(cropW, cropH);
+        const sq = document.createElement("canvas");
+        sq.width = sq.height = size;
+        const sqcx = sq.getContext("2d");
+        sqcx.fillStyle = "#ffffff";
+        sqcx.fillRect(0, 0, size, size);
+        sqcx.drawImage(
+          src,
+          cropX,
+          cropY,
+          cropW,
+          cropH,
+          Math.floor((size - cropW) / 2),
+          Math.floor((size - cropH) / 2),
+          cropW,
+          cropH,
+        );
+        return sq.toDataURL("image/png");
+      }
+
+      /** @returns {Promise<void>} */
+      async function submitDraw() {
+        const btn = /** @type {HTMLButtonElement} */ (
+          document.getElementById("btnSend")
+        );
+        btn.disabled = true;
+        setStatus("sending…");
+        try {
+          const data = await doSubmit(squarePad(canvas), "drawing");
+          if (data.success) {
+            const msg = document.getElementById("sentMsg");
+            msg.style.opacity = "1";
+            setTimeout(() => (msg.style.opacity = "0"), 1000);
+            setTimeout(() => {
+              clearCanvas();
+              goTo("pickerScreen");
+            }, 800);
+            setStatus("ready");
+          } else {
+            setStatus("error");
+          }
+        } catch (e) {
+          setStatus("error");
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      /** @returns {Promise<void>} */
+      async function submitText() {
+        const word = /** @type {HTMLInputElement} */ (
+          document.getElementById("wordInput")
+        ).value.trim();
+        if (!word) return;
+        const btn = /** @type {HTMLButtonElement} */ (
+          document.getElementById("btnTextSend")
+        );
+        btn.disabled = true;
+        setStatus("sending…");
+        try {
+          const data = await doSubmit(textToCanvas(word, chosenFont), "text");
+          if (data.success) {
+            /** @type {HTMLInputElement} */ (
+              document.getElementById("wordInput")
+            ).value = "";
+            updateTextPreview();
+            setStatus("ready");
+            goTo("pickerScreen");
+          } else {
+            setStatus("error");
+          }
+        } catch (e) {
+          setStatus("error");
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      // ── SSE ───────────────────────────────────────────────────────────────────────
+      const ring = document.getElementById("selectionRing");
+      const overlay = document.getElementById("flashOverlay");
+      /**
+       * @param {string} color
+       * @param {number} [dur]
+       */
+      function flash(color, dur = 800) {
+        overlay.style.background = color;
+        overlay.style.opacity = "0.5";
+        setTimeout(() => (overlay.style.opacity = "0"), dur);
+      }
+      /** @param {boolean} on */
+      function setRing(on) {
+        ring.style.opacity = on ? "1" : "0";
+      }
+
+      const es = new EventSource(`${host}/stream`);
+      es.addEventListener("selection_changed", (e) => {
+        const { selected } = JSON.parse(e.data);
+        const mine = selected.filter((s) => s.phoneId === me.id);
+        setRing(mine.length > 0);
+        setStatus(mine.length ? "selected!" : "ready");
+      });
+      es.addEventListener("combining", (e) => {
+        const { phones } = JSON.parse(e.data);
+        if (phones.some((p) => p.phoneId === me.id)) {
+          flash(me.color, 2000);
+          setStatus("combining…");
+          let on = true;
+          const p = setInterval(() => setRing((on = !on)), 400);
+          setTimeout(() => {
+            clearInterval(p);
+            setRing(false);
+          }, 6000);
+        }
+      });
+      es.addEventListener("combined", (e) => {
+        const { phones } = JSON.parse(e.data);
+        if (phones.some((p) => p.phoneId === me.id)) {
+          flash("#fff", 500);
+          setTimeout(() => flash(me.color, 1200), 600);
+          setStatus("combined! ✓");
+          setTimeout(() => setStatus("ready"), 4000);
+        }
+      });
+    </script>
+  </body>
+</html>
