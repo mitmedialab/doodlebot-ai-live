@@ -277,6 +277,20 @@
         padding: 0.3rem 0.4rem;
         width: 100%;
       }
+      input[type="color"] {
+        background: #0c0c0a;
+        border: 1px solid #2a2a2a;
+        padding: 2px;
+        width: 100%;
+        height: 26px; /* match the ~line-height of text/number inputs */
+        cursor: pointer;
+      }
+      input[type="color"]::-webkit-color-swatch-wrapper {
+        padding: 0;
+      }
+      input[type="color"]::-webkit-color-swatch {
+        border: none;
+      }
       input:focus,
       select:focus {
         outline: none;
@@ -587,7 +601,7 @@
 
     <script>
       // ── Host + token (mirrors gallery.html) ────────────────────────────────
-      const MODE = "PROD";
+      const MODE = "DEV";
       const host =
         MODE === "DEV"
           ? "http://localhost:5001"
@@ -813,9 +827,10 @@
         (c.regions || []).forEach((r) => {
           const f = free[r.id] == null ? 1 : free[r.id];
           const occ = 1 - f;
+          const color = r.color || "#2d7d46";
           parts.push(
             `<rect x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" ` +
-              `fill="rgba(45,125,70,${(occ * 0.6).toFixed(3)})" stroke="#2d7d46" stroke-width="${sw}"/>`,
+              `fill="${color}" fill-opacity="${(occ * 0.6).toFixed(3)}" stroke="${color}" stroke-width="${sw}"/>`,
           );
           parts.push(
             `<text x="${r.x + fs * 0.3}" y="${r.y + fs * 1.2}" font-size="${fs}" font-family="monospace" fill="#1c1c1c">${escSvg(r.id)}${r.robot ? " · " + escSvg(r.robot) : ""}</text>`,
@@ -951,7 +966,7 @@
         document.getElementById("markersList").appendChild(row);
       }
 
-      /** @param {{id?:string,x?:number,y?:number,width?:number,height?:number,robot?:string}} [r] */
+      /** @param {{id?:string,x?:number,y?:number,width?:number,height?:number,robot?:string,color?:string}} [r] */
       function addRegionRow(r) {
         r = r || {};
         const row = document.createElement("div");
@@ -963,12 +978,12 @@
           <div class="field"><label>w</label><input type="number" step="any" class="rg-w" value="${r.width ?? ""}"/></div>
           <div class="field"><label>h</label><input type="number" step="any" class="rg-h" value="${r.height ?? ""}"/></div>
           <div class="field"><label>robot</label><input type="text" class="rg-robot" value="${r.robot ?? ""}"/></div>
+          <div class="field"><label>color</label><input type="color" class="rg-color" value="${r.color ?? "#2d7d46"}"/></div>
           <button class="ghost tiny" onclick="this.parentElement.remove()">✕</button>`;
-        // robot input + remove button share the last two columns; fix grid
-        row.style.gridTemplateColumns = "1fr 1fr 1fr 1fr 1fr 1.2fr auto";
+        // id, x, y, w, h, robot, color + remove button
+        row.style.gridTemplateColumns = "1fr 1fr 1fr 1fr 1fr 1.2fr 0.7fr auto";
         document.getElementById("regionsList").appendChild(row);
       }
-
       /** Generate an evenly-tiled region grid over the current canvas size. */
       function autoGridRegions() {
         const W = num("cW"),
@@ -993,6 +1008,7 @@
               width: +rw.toFixed(2),
               height: +rh.toFixed(2),
               robot: prefix + i,
+              color: "#2d7d46",
             });
             i++;
           }
@@ -1121,9 +1137,10 @@
             const width = parseFloat(row.querySelector(".rg-w").value);
             const height = parseFloat(row.querySelector(".rg-h").value);
             const robot = row.querySelector(".rg-robot").value.trim();
+            const color = row.querySelector(".rg-color").value;
             if (!id || isNaN(x) || isNaN(y) || isNaN(width) || isNaN(height))
               return null;
-            return { id, x, y, width, height, robot: robot || null };
+            return { id, x, y, width, height, robot: robot || null, color };
           })
           .filter(Boolean);
 
@@ -1343,7 +1360,7 @@
       // addMarkerRow({ id: 1, x: 1219.2, y: 0, sizeMm: 100 });
       // addMarkerRow({ id: 2, x: 1219.2, y: 2438.4, sizeMm: 100 });
       // addMarkerRow({ id: 3, x: 0, y: 2438.4, sizeMm: 100 });
-      addRegionRow({ id: "r00", x: 180, y: 180, width: 555, height: 170, robot: "bot-0" });
+      addRegionRow({ id: "r00", x: 180, y: 180, width: 555, height: 170, robot: "bot-0", color: "#2d7d46" });
 
       refreshAll();
     </script>
