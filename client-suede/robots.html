@@ -232,6 +232,41 @@
         margin-top: 0.55rem;
       }
 
+      /* ── Editor create/update mode: show only the active mode's controls ── */
+      #editorPanel[data-mode="create"] .only-update,
+      #editorPanel[data-mode="update"] .only-create {
+        display: none;
+      }
+      input[readonly] {
+        opacity: 0.65;
+        cursor: not-allowed;
+      }
+
+      /* ── Update-mode diff highlights ── */
+      input.changed,
+      select.changed {
+        border-color: #d4a843;
+        box-shadow: inset 3px 0 0 #d4a843;
+      }
+      .row-line.row-added {
+        outline: 1px dashed #2d7d46;
+        outline-offset: 3px;
+      }
+      .row-line.row-added input {
+        border-color: #2d7d46;
+      }
+      .diff-summary {
+        font-size: 0.6rem;
+        line-height: 1.6;
+        margin-top: 0.55rem;
+      }
+      .diff-summary.none {
+        color: #948d80;
+      }
+      .diff-summary.has {
+        color: #e8d9a0;
+      }
+
       /* ── Tables ── */
       table {
         width: 100%;
@@ -574,16 +609,36 @@
       <!-- ── Canvas configuration ───────────────────────────────────── -->
       <section class="panel" id="editorPanel">
         <h2>Configure canvas</h2>
-        <div class="muted" style="margin-bottom: 0.7rem">
-          Register or replace a canvas (id is the key — reusing an id resets its
-          occupancy).
+
+        <div class="tabs">
+          <button id="tabCreate" class="tab" onclick="setEditorMode('create')">
+            Create new
+          </button>
+          <button id="tabUpdate" class="tab" onclick="setEditorMode('update')">
+            Update existing
+          </button>
         </div>
 
-        <div class="field" style="margin-bottom: 0.6rem">
-          <label>Load existing</label>
+        <div class="muted only-create" style="margin-bottom: 0.7rem">
+          Define a brand-new canvas. The <strong>id</strong> must be unique —
+          creating one that already exists is blocked (switch to
+          <em>Update existing</em> for that).
+        </div>
+        <div class="muted only-update" style="margin-bottom: 0.7rem">
+          Pick a canvas to edit — it loads into the form below and is focused in the
+          Canvases display so you can see exactly what you're changing. Edits apply
+          on <strong>Update canvas</strong>.
+        </div>
+
+        <div class="field only-update" style="margin-bottom: 0.6rem">
+          <label>Canvas to update</label>
           <div style="display: flex; gap: 0.5rem">
-            <select id="loadSelect" style="flex: 1"></select>
-            <button class="ghost tiny" onclick="loadSelected()">Load</button>
+            <select
+              id="loadSelect"
+              style="flex: 1"
+              onchange="loadSelected()"
+            ></select>
+            <button class="ghost tiny" onclick="loadSelected()">Reload</button>
           </div>
         </div>
 
@@ -677,20 +732,30 @@
 
         <!-- Server actions: write / reset this canvas on the server. -->
         <div class="well">
-          <div class="well-label">Canvas (server)</div>
-          <div class="btn-row">
-            <button class="gold" onclick="saveCanvasWithOccupancy()">
-              Update canvas
-            </button>
+          <div class="well-label only-create">Create (server)</div>
+          <div class="well-label only-update">Canvas (server)</div>
+          <div class="btn-row only-create">
+            <button class="gold" onclick="createCanvas()">Create canvas</button>
+          </div>
+          <div class="btn-row only-update">
+            <button class="gold" onclick="updateCanvas()">Update canvas</button>
             <button class="danger" onclick="clearDrawings()">
               Clear drawings
             </button>
             <button class="danger" onclick="deleteCanvas()">Delete canvas</button>
           </div>
-          <div class="hint">
-            <strong>Update canvas</strong> writes the config above to the server and
-            keeps whatever drawings are already placed on this canvas. To reset it to
-            no drawings, use <strong>Clear drawings</strong> explicitly.
+          <div id="diffSummary" class="diff-summary only-update"></div>
+          <div class="hint only-create">
+            <strong>Create canvas</strong> registers a new canvas on the server. It
+            errors if the id is already taken.
+          </div>
+          <div class="hint only-update">
+            <strong>Update canvas</strong> writes the config above to the selected
+            canvas and keeps whatever drawings are already placed on it. Fields that
+            differ from the server are highlighted
+            <span style="color: #d4a843">gold</span>, added markers/regions outlined
+            <span style="color: #2d7d46">green</span>. To reset it to no drawings, use
+            <strong>Clear drawings</strong> explicitly.
           </div>
         </div>
 
@@ -731,10 +796,10 @@
           </div>
           <div class="hint">
             <strong>Export</strong> downloads the current editor state as a JSON file.
-            <strong>Import config</strong> loads a file into the editor for review —
-            click <strong>Update canvas</strong> to apply it.
-            <strong>Import with occupancy</strong> loads and applies to the server
-            immediately, drawings included.
+            <strong>Import config</strong> loads a file into the editor for review and
+            picks Create or Update depending on whether its id already exists — apply
+            it with that button. <strong>Import with occupancy</strong> loads and
+            applies to the server immediately, drawings included.
           </div>
         </div>
 
@@ -1258,15 +1323,357 @@
       }
 
       /** Populate the editor from a canvas returned by the server. */
+      // ── Editor mode (create new vs. update existing) ───────────────────────────
+      /** @type {"create"|"update"} */
+      let editorMode = "create";
+      /** Id of the canvas bound to the update form (null until one is chosen). */
+      let selectedCanvasId = null;
+      /**
+       * Server-side snapshot of the selected canvas, normalized for comparison, so
+       * the update form can highlight which fields differ from what's stored. Null
+       * outside update mode. Captured at load and re-captured after a successful
+       * update. Note: the server's canvas endpoint doesn't report placement config,
+       * so placement fields are intentionally excluded from the diff.
+       */
+      let updateBaseline = null;
+
+      /** @param {"create"|"update"} mode */
+      function setEditorMode(mode) {
+        editorMode = mode;
+        const panel = document.getElementById("editorPanel");
+        panel.dataset.mode = mode;
+        document
+          .getElementById("tabCreate")
+          .classList.toggle("active", mode === "create");
+        document
+          .getElementById("tabUpdate")
+          .classList.toggle("active", mode === "update");
+        // The id is the canvas key: free to type when creating, locked to the
+        // selected canvas when updating so an edit can't silently retarget.
+        const idInput = /** @type {HTMLInputElement} */ (
+          document.getElementById("cId")
+        );
+        idInput.readOnly = mode === "update";
+        editorToast("", true);
+        if (mode === "create") updateBaseline = null; // nothing to diff against
+        recomputeDiff();
+        if (mode === "update" && !selectedCanvasId) {
+          editorToast("Select a canvas to update above.", false);
+        }
+      }
+
+      /** Load an existing canvas into the update form and focus it in the display. */
       function loadSelected() {
         const id = document.getElementById("loadSelect").value;
+        if (!id) {
+          selectedCanvasId = null;
+          return;
+        }
         const c = (window._canvases || []).find((x) => x.id === id);
         if (!c) return;
         applyCanvasConfig(c);
+        selectedCanvasId = c.id;
+        selectCanvasTab(c.id); // focus this canvas in the Canvases display
+        captureUpdateBaseline(c.id);
+        recomputeDiff();
         editorToast(
-          `Loaded "${c.id}"${c.placement ? "" : " (placement defaults apply)"}`,
+          `Editing "${c.id}"${c.placement ? "" : " (placement defaults apply)"} — changes apply on Update canvas`,
           true,
         );
+      }
+
+      /** Switch to update mode already bound to `id` (used after a create). */
+      function selectCanvasForUpdate(id) {
+        const c = (window._canvases || []).find((x) => x.id === id);
+        if (!c) return;
+        selectedCanvasId = id; // set before switching so the mode toast is clean
+        setEditorMode("update");
+        document.getElementById("loadSelect").value = id;
+        applyCanvasConfig(c);
+        selectCanvasTab(id);
+        captureUpdateBaseline(id);
+        recomputeDiff();
+      }
+
+      /** POST a canvas payload; returns true on success. `verb` is "Create"/"Update". */
+      async function postCanvasPayload(payload, verb) {
+        try {
+          const res = await fetch(`${host}/api/robots/canvases`, {
+            method: "POST",
+            headers: authHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const t = await res.text();
+            editorToast(`${verb} failed: ` + t.slice(0, 160), false);
+            return false;
+          }
+          const drawn = payload.drawings ? payload.drawings.length : 0;
+          editorToast(
+            `${verb}d "${payload.id}" — ${payload.regions.length} regions, ${payload.markers.length} markers, ${drawn} drawing(s)`,
+            true,
+          );
+          return true;
+        } catch (e) {
+          editorToast("Network error: " + e, false);
+          return false;
+        }
+      }
+
+      /** Create a brand-new canvas — blocked if the id already exists. */
+      async function createCanvas() {
+        if (!tok()) return editorToast("Enter admin token", false);
+        const payload = buildCanvasPayload();
+        if (!payload.id) return editorToast("Canvas id is required", false);
+        if (!payload.regions.length)
+          return editorToast("Add at least one region", false);
+        if ((window._canvases || []).some((c) => c.id === payload.id)) {
+          return editorToast(
+            `Canvas "${payload.id}" already exists — switch to "Update existing" to edit it, or choose a different id.`,
+            false,
+          );
+        }
+        payload.drawings = []; // a new canvas starts empty
+        const ok = await postCanvasPayload(payload, "Create");
+        if (!ok) return;
+        await refreshAll();
+        selectCanvasForUpdate(payload.id); // hand off to update mode on the new one
+        editorToast(
+          `Created "${payload.id}" — now editing it under "Update existing".`,
+          true,
+        );
+      }
+
+      /** Update the currently-selected canvas, preserving its placed drawings. */
+      async function updateCanvas() {
+        if (!tok()) return editorToast("Enter admin token", false);
+        if (!selectedCanvasId)
+          return editorToast(
+            "Select a canvas to update first (choose one above).",
+            false,
+          );
+        const payload = buildCanvasPayloadWithOccupancy();
+        if (!payload.id) return editorToast("Canvas id is required", false);
+        if (payload.id !== selectedCanvasId)
+          return editorToast(
+            `Editor id "${payload.id}" doesn't match the selected canvas "${selectedCanvasId}".`,
+            false,
+          );
+        if (!payload.regions.length)
+          return editorToast("Add at least one region", false);
+        const ok = await postCanvasPayload(payload, "Update");
+        if (!ok) return;
+        await refreshAll();
+        captureUpdateBaseline(selectedCanvasId); // now the server matches the form
+        recomputeDiff();
+      }
+
+      // ── Update diff (highlight fields that differ from the server) ──────────────
+      /** Expand #rgb → #rrggbb and lowercase, so color equality is representation-safe. */
+      function normHex(c) {
+        if (typeof c !== "string") return "";
+        let s = c.trim().toLowerCase();
+        if (/^#[0-9a-f]{3}$/.test(s))
+          s = "#" + s.slice(1).split("").map((ch) => ch + ch).join("");
+        return s;
+      }
+      /** Numeric equality with a small tolerance (both blank counts as equal). */
+      function numEq(a, b) {
+        const na = Number(a),
+          nb = Number(b);
+        if (isNaN(na) && isNaN(nb)) return true;
+        return Math.abs(na - nb) < 1e-6;
+      }
+
+      /** Snapshot the server's copy of canvas `id` into `updateBaseline`. */
+      function captureUpdateBaseline(id) {
+        const c = (window._canvases || []).find((x) => x.id === id);
+        if (!c) {
+          updateBaseline = null;
+          return;
+        }
+        updateBaseline = {
+          id: c.id,
+          width: Number(c.width),
+          height: Number(c.height),
+          markers: (c.markers || []).map((m) => ({
+            id: String(m.id),
+            x: Number(m.position.x),
+            y: Number(m.position.y),
+            sizeMm: m.sizeMm == null ? null : Number(m.sizeMm),
+          })),
+          regions: (c.regions || []).map((r) => ({
+            id: r.id,
+            x: Number(r.x),
+            y: Number(r.y),
+            width: Number(r.width),
+            height: Number(r.height),
+            robot: r.robot || "",
+            color: normHex(r.color || ""),
+          })),
+          // Placement now round-trips from the server (see robots.py). Older
+          // servers that don't report it leave this null and it's skipped.
+          placement: c.placement
+            ? {
+                cellMm: Number(c.placement.cellMm),
+                penMm: Number(c.placement.penMm),
+                clearanceMm: Number(c.placement.clearanceMm),
+                searchStepCells: Number(c.placement.searchStepCells),
+                angleStepDeg: Number(c.placement.angleStepDeg),
+                strategy: String(c.placement.strategy),
+                targetFootprintMm: Number(c.placement.targetFootprintMm),
+                minFootprintScale: Number(c.placement.minFootprintScale),
+              }
+            : null,
+        };
+      }
+
+      /** Drop every diff highlight in the editor. */
+      function clearDiffMarks() {
+        document
+          .querySelectorAll("#editorPanel .changed, #editorPanel .row-added")
+          .forEach((el) => el.classList.remove("changed", "row-added"));
+      }
+
+      /**
+       * Compare the update form against `updateBaseline` and mark each field that
+       * differs: changed inputs get a gold bar, whole added rows a green outline,
+       * and a summary of every change (including removed markers/regions, which have
+       * no row to highlight) is written into #diffSummary. No-op outside update mode.
+       */
+      function recomputeDiff() {
+        const summaryEl = document.getElementById("diffSummary");
+        clearDiffMarks();
+        if (editorMode !== "update" || !updateBaseline) {
+          if (summaryEl) summaryEl.textContent = "";
+          return;
+        }
+        const base = updateBaseline;
+        const changes = [];
+
+        if (!numEq(num("cW"), base.width)) {
+          document.getElementById("cW").classList.add("changed");
+          changes.push("width");
+        }
+        if (!numEq(num("cH"), base.height)) {
+          document.getElementById("cH").classList.add("changed");
+          changes.push("height");
+        }
+
+        // Placement (numeric fields + the strategy select). Skipped if the server
+        // didn't report placement (older backend).
+        if (base.placement) {
+          const numFields = [
+            ["pCell", "cellMm", "cell"],
+            ["pPen", "penMm", "pen"],
+            ["pClear", "clearanceMm", "clearance"],
+            ["pStep", "searchStepCells", "search step"],
+            ["pAngle", "angleStepDeg", "angle step"],
+            ["pTargetFootprint", "targetFootprintMm", "target footprint"],
+            ["pMinScale", "minFootprintScale", "min scale"],
+          ];
+          numFields.forEach(([id, key, label]) => {
+            if (!numEq(num(id), base.placement[key])) {
+              document.getElementById(id).classList.add("changed");
+              changes.push(label);
+            }
+          });
+          const stratEl = document.getElementById("pStrategy");
+          if (stratEl.value !== base.placement.strategy) {
+            stratEl.classList.add("changed");
+            changes.push("strategy");
+          }
+        }
+
+        // Markers, matched by id.
+        const baseMk = new Map(base.markers.map((m) => [m.id, m]));
+        const seenMk = new Set();
+        document.querySelectorAll("#markersList .marker-row").forEach((row) => {
+          const id = row.querySelector(".mk-id").value.trim();
+          seenMk.add(id);
+          const bm = baseMk.get(id);
+          if (!bm) {
+            row.classList.add("row-added");
+            changes.push(`marker "${id || "?"}" added`);
+            return;
+          }
+          let dirty = false;
+          const cmpN = (sel, baseVal) => {
+            const el = row.querySelector(sel);
+            if (!numEq(parseFloat(el.value), baseVal)) {
+              el.classList.add("changed");
+              dirty = true;
+            }
+          };
+          cmpN(".mk-x", bm.x);
+          cmpN(".mk-y", bm.y);
+          const sizeEl = row.querySelector(".mk-size");
+          const size = sizeEl.value.trim() === "" ? null : parseFloat(sizeEl.value);
+          const sizeSame =
+            (size == null && bm.sizeMm == null) ||
+            (size != null && bm.sizeMm != null && numEq(size, bm.sizeMm));
+          if (!sizeSame) {
+            sizeEl.classList.add("changed");
+            dirty = true;
+          }
+          if (dirty) changes.push(`marker "${id}" edited`);
+        });
+        base.markers.forEach((m) => {
+          if (!seenMk.has(m.id)) changes.push(`marker "${m.id}" removed`);
+        });
+
+        // Regions, matched by id.
+        const baseRg = new Map(base.regions.map((r) => [r.id, r]));
+        const seenRg = new Set();
+        document.querySelectorAll("#regionsList .region-row").forEach((row) => {
+          const id = row.querySelector(".rg-id").value.trim();
+          seenRg.add(id);
+          const br = baseRg.get(id);
+          if (!br) {
+            row.classList.add("row-added");
+            changes.push(`region "${id || "?"}" added`);
+            return;
+          }
+          let dirty = false;
+          const cmpN = (sel, baseVal) => {
+            const el = row.querySelector(sel);
+            if (!numEq(parseFloat(el.value), baseVal)) {
+              el.classList.add("changed");
+              dirty = true;
+            }
+          };
+          cmpN(".rg-x", br.x);
+          cmpN(".rg-y", br.y);
+          cmpN(".rg-w", br.width);
+          cmpN(".rg-h", br.height);
+          const robotEl = row.querySelector(".rg-robot");
+          if ((robotEl.value.trim() || "") !== br.robot) {
+            robotEl.classList.add("changed");
+            dirty = true;
+          }
+          const colorEl = row.querySelector(".rg-color");
+          if (normHex(colorEl.value) !== br.color) {
+            colorEl.classList.add("changed");
+            dirty = true;
+          }
+          if (dirty) changes.push(`region "${id}" edited`);
+        });
+        base.regions.forEach((r) => {
+          if (!seenRg.has(r.id)) changes.push(`region "${r.id}" removed`);
+        });
+
+        if (summaryEl) {
+          if (!changes.length) {
+            summaryEl.className = "diff-summary only-update none";
+            summaryEl.textContent = "No changes vs. server.";
+          } else {
+            summaryEl.className = "diff-summary only-update has";
+            summaryEl.innerHTML =
+              `<strong>${changes.length} change${changes.length === 1 ? "" : "s"} pending:</strong> ` +
+              changes.map(esc).join(", ") +
+              ".";
+          }
+        }
       }
 
       /** Download the current editor state as a complete JSON config file. */
@@ -1306,7 +1713,9 @@
 
       /**
        * Load a complete config from a chosen JSON file into the editor. Does not
-       * save — the user reviews the populated fields and clicks Save canvas.
+       * save — the user reviews the populated fields, then Create/Update canvas.
+       * The editor is switched into the correct mode based on whether the file's
+       * id already exists on the server (update it) or not (create it).
        * @param {HTMLInputElement} input
        */
       function importConfig(input) {
@@ -1317,10 +1726,26 @@
           try {
             const cfg = JSON.parse(/** @type {string} */ (reader.result));
             applyCanvasConfig(cfg);
-            editorToast(
-              `Imported "${cfg.id || file.name}" — review, then Save canvas`,
-              true,
-            );
+            const exists = (window._canvases || []).some((c) => c.id === cfg.id);
+            if (exists) {
+              selectedCanvasId = cfg.id;
+              setEditorMode("update");
+              document.getElementById("loadSelect").value = cfg.id;
+              selectCanvasTab(cfg.id);
+              captureUpdateBaseline(cfg.id); // baseline = server; diff shows the import
+              recomputeDiff();
+              editorToast(
+                `Imported "${cfg.id}" over the existing canvas — review the highlighted changes, then Update canvas`,
+                true,
+              );
+            } else {
+              selectedCanvasId = null;
+              setEditorMode("create");
+              editorToast(
+                `Imported "${cfg.id || file.name}" as a new canvas — review, then Create canvas`,
+                true,
+              );
+            }
           } catch (e) {
             editorToast("Import failed: " + e.message, false);
           }
@@ -1509,41 +1934,6 @@
       }
       
 
-      /**
-       * Save the current editor state while preserving the canvas's already-placed
-       * drawings (and the occupancy they reserve). Plain "Save canvas" re-posts the
-       * canvas with an empty `drawings` list, which resets its occupancy — use this
-       * when you've only tweaked config (regions, colors, placement) and want the
-       * existing drawings to stay put. The drawings come from the last server
-       * snapshot in `window._canvases`, so Refresh first if they may be stale.
-       * @returns {Promise<void>}
-       */
-      async function saveCanvasWithOccupancy() {
-        if (!tok()) return editorToast("Enter admin token", false);
-        const payload = buildCanvasPayloadWithOccupancy();
-        if (!payload.id) return editorToast("Canvas id is required", false);
-        if (!payload.regions.length)
-          return editorToast("Add at least one region", false);
-        try {
-          const res = await fetch(`${host}/api/robots/canvases`, {
-            method: "POST",
-            headers: authHeaders({ "Content-Type": "application/json" }),
-            body: JSON.stringify(payload),
-          });
-          if (!res.ok) {
-            const t = await res.text();
-            return editorToast("Save failed: " + t.slice(0, 160), false);
-          }
-          editorToast(
-            `Saved "${payload.id}" — ${payload.regions.length} regions, ${payload.markers.length} markers, ${payload.drawings.length} drawing(s)`,
-            true,
-          );
-          refreshAll();
-        } catch (e) {
-          editorToast("Network error: " + e, false);
-        }
-      }
-
       async function deleteCanvas() {
         if (!tok()) return editorToast("Enter admin token", false);
 
@@ -1562,6 +1952,7 @@
             return editorToast("Delete failed: " + t.slice(0, 160), false);
           }
           editorToast(`Deleted canvas "${id}"`, true);
+          if (id === selectedCanvasId) selectedCanvasId = null;
           refreshAll();
         } catch (e) {
           editorToast("Network error: " + e, false);
@@ -1954,6 +2345,20 @@
       // addMarkerRow({ id: 3, x: 0, y: 2438.4, sizeMm: 100 });
       addRegionRow({ id: "r00", x: 180, y: 180, width: 555, height: 170, robot: "bot-0", color: "#2d7d46" });
 
+      // Live diff: re-highlight on every edit (typing/selects) and whenever marker
+      // or region rows are added/removed. No-op unless we're in update mode.
+      const _editorPanel = document.getElementById("editorPanel");
+      _editorPanel.addEventListener("input", recomputeDiff);
+      _editorPanel.addEventListener("change", recomputeDiff);
+      const _diffObserver = new MutationObserver(() => recomputeDiff());
+      _diffObserver.observe(document.getElementById("markersList"), {
+        childList: true,
+      });
+      _diffObserver.observe(document.getElementById("regionsList"), {
+        childList: true,
+      });
+
+      setEditorMode("create"); // start in create mode
       refreshAll();
     </script>
   </body>
