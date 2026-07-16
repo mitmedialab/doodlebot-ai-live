@@ -425,6 +425,11 @@
         auto
       </label>
       <button class="ghost tiny" onclick="refreshAll()">Refresh</button>
+      <button 
+      class="ghost tiny" 
+      onclick="window.open(`./static/bust?token=${ new URLSearchParams(window.location.search).get('token')}`, '_blank')">
+      Static Cache Bust
+    </button>
       <div class="token-row">
         <label>Token</label>
         <input id="adminToken" placeholder="admin token…" autocomplete="off" />
