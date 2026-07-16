@@ -551,8 +551,12 @@
 
         <div class="btn-row">
           <button class="ghost" onclick="exportConfig()">Export config</button>
+          <button class="ghost" onclick="exportConfigWithOccupancy()">Export config with occupancy</button>
           <button class="ghost" onclick="document.getElementById('importFile').click()">
             Import config
+          </button>
+          <button class="ghost" onclick="document.getElementById('importFileWithOccupancy').click()">
+            Import config with occupancy
           </button>
           <input
             type="file"
@@ -560,6 +564,13 @@
             accept="application/json,.json"
             style="display: none"
             onchange="importConfig(this)"
+          />
+          <input
+            type="file"
+            id="importFileWithOccupancy"
+            accept="application/json,.json"
+            style="display: none"
+            onchange="importConfigWithOccupancy(this)"
           />
         </div>
 
@@ -850,26 +861,26 @@
             `<text x="${mx + fs * 0.7}" y="${my + fs * 0.4}" font-size="${fs * 0.8}" font-family="monospace" fill="#7a5c12">${m.id}</text>`,
           );
         });
-        (c.drawings || []).forEach((drawing) => {
+        (c.drawings || []).forEach((drawing, i) => {
+
           (drawing.strokes || []).forEach((stroke) => {
-            console.log(stroke);
-            if (stroke.length < 2) return;
+              
+              if (stroke.length < 2) return;
 
-            const points = stroke
-              .map((p) => `${p[0]},${p[1]}`)
-              .join(" ");
+              const points = stroke
+                .map((p) => `${p[0]},${p[1]}`)
+                .join(" ");
 
-            parts.push(`
-              <polyline
-                points="${points}"
-                fill="none"
-                stroke="#000"
-                stroke-width="${sw * 2}"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            `);
-            console.log(parts);
+              parts.push(`
+                <polyline
+                  points="${points}"
+                  fill="none"
+                  stroke="#000"
+                  stroke-width="${sw * 2}"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              `);
           });
         });
         // bots that live on this canvas (matched by region id)
@@ -1088,6 +1099,23 @@
         editorToast(`Exported "${payload.id}"`, true);
       }
 
+      function exportConfigWithOccupancy() {
+        const payload = buildCanvasPayloadWithOccupancy();
+        if (!payload.id) return editorToast("Canvas id is required", false);
+        const blob = new Blob([JSON.stringify(payload, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${payload.id}.canvas.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        editorToast(`Exported "${payload.id}"`, true);
+      }
+
       /**
        * Load a complete config from a chosen JSON file into the editor. Does not
        * save — the user reviews the populated fields and clicks Save canvas.
@@ -1113,6 +1141,27 @@
         reader.readAsText(file);
         input.value = ""; // let the same file be re-imported later
       }
+
+      function importConfigWithOccupancy(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const cfg = JSON.parse(/** @type {string} */ (reader.result));
+            const drawings = cfg.drawings;
+            applyCanvasConfig(cfg);
+            saveCanvas();
+            saveCanvasWithDrawings(cfg.drawings);
+          } catch (e) {
+            editorToast("Import failed: " + e.message, false);
+          }
+        };
+        reader.onerror = () => editorToast("Could not read file", false);
+        reader.readAsText(file);
+        input.value = ""; // let the same file be re-imported later
+      }
+
 
       /** @returns {object} CanvasConfig payload for POST /api/robots/canvases */
       function buildCanvasPayload() {
@@ -1163,6 +1212,58 @@
         };
       }
 
+      /** @returns {object} CanvasConfig payload for POST /api/robots/canvases */
+      function buildCanvasPayloadWithOccupancy() {
+        const markers = [...document.querySelectorAll(".marker-row")]
+          .map((row) => {
+            const id = parseInt(row.querySelector(".mk-id").value, 10);
+            const x = parseFloat(row.querySelector(".mk-x").value);
+            const y = parseFloat(row.querySelector(".mk-y").value);
+            const size = parseFloat(row.querySelector(".mk-size").value);
+            if (isNaN(id) || isNaN(x) || isNaN(y)) return null;
+            const m = { id, position: { x, y } };
+            if (!isNaN(size)) m.sizeMm = size;
+            return m;
+          })
+          .filter(Boolean);
+
+        const regions = [...document.querySelectorAll(".region-row")]
+          .map((row) => {
+            const id = row.querySelector(".rg-id").value.trim();
+            const x = parseFloat(row.querySelector(".rg-x").value);
+            const y = parseFloat(row.querySelector(".rg-y").value);
+            const width = parseFloat(row.querySelector(".rg-w").value);
+            const height = parseFloat(row.querySelector(".rg-h").value);
+            const robot = row.querySelector(".rg-robot").value.trim();
+            if (!id || isNaN(x) || isNaN(y) || isNaN(width) || isNaN(height))
+              return null;
+            return { id, x, y, width, height, robot: robot || null };
+          })
+          .filter(Boolean);
+
+        const id = document.getElementById("cId").value.trim()
+        const existingCanvas = (window._canvases || []).find((c) => c.id === id);
+
+        return {
+          id: id,
+          width: num("cW"),
+          height: num("cH"),
+          markers,
+          regions,
+          placement: {
+            cellMm: num("pCell"),
+            penMm: num("pPen"),
+            clearanceMm: num("pClear"),
+            searchStepCells: Math.round(num("pStep")),
+            angleStepDeg: num("pAngle"),
+            strategy: document.getElementById("pStrategy").value,
+            targetFootprintMm: num("pTargetFootprint"),
+            minFootprintScale: num("pMinScale"),
+          },
+          drawings: structuredClone(existingCanvas?.drawings ?? []),
+        };
+      }
+
       /** @returns {Promise<void>} */
       async function saveCanvas() {
         if (!tok()) return editorToast("Enter admin token", false);
@@ -1189,6 +1290,35 @@
           editorToast("Network error: " + e, false);
         }
       }
+
+      /** @returns {Promise<void>} */
+      async function saveCanvasWithDrawings(drawings) {
+        if (!tok()) return editorToast("Enter admin token", false);
+        const payload = buildCanvasPayload();
+        if (!payload.id) return editorToast("Canvas id is required", false);
+        payload.drawings = drawings;
+        if (!payload.regions.length)
+          return editorToast("Add at least one region", false);
+        try {
+          const res = await fetch(`${host}/api/robots/canvases`, {
+            method: "POST",
+            headers: authHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const t = await res.text();
+            return editorToast("Save failed: " + t.slice(0, 160), false);
+          }
+          editorToast(
+            `Saved "${payload.id}" — ${payload.regions.length} regions, ${payload.markers.length} markers`,
+            true,
+          );
+          refreshAll();
+        } catch (e) {
+          editorToast("Network error: " + e, false);
+        }
+      }
+      
 
       async function deleteCanvas() {
         if (!tok()) return editorToast("Enter admin token", false);
