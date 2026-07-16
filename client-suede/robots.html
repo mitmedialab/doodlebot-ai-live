@@ -655,6 +655,14 @@
             <label>Height (mm)</label>
             <input type="number" id="cH" value="530" step="any" />
           </div>
+          <div class="field">
+            <label>General buffer (mm)</label>
+            <input type="number" id="cBuffer" value="30" step="any" />
+          </div>
+        </div>
+        <div class="hint">
+          General buffer is the clearance kept between separate drawings on the
+          canvas.
         </div>
         <div class="btn-row">
           <button class="ghost tiny" onclick="setSize(1219.2, 2438.4)">
@@ -672,11 +680,11 @@
         <div class="grid3">
           <div class="field">
             <label>Cell (mm)</label>
-            <input type="number" id="pCell" value="2" step="any" />
+            <input type="number" id="pCell" value="5" step="any" />
           </div>
           <div class="field">
             <label>Pen (mm)</label>
-            <input type="number" id="pPen" value="3" step="any" />
+            <input type="number" id="pPen" value="5" step="any" />
           </div>
           <div class="field">
             <label>Clearance (mm)</label>
@@ -693,8 +701,8 @@
           <div class="field">
             <label>Strategy</label>
             <select id="pStrategy">
-              <option value="origin">origin (dense)</option>
               <option value="scatter">scatter (organic)</option>
+              <option value="origin">origin (dense)</option>
             </select>
           </div>
           <div class="field">
@@ -1292,6 +1300,8 @@
         if (cfg.id != null) document.getElementById("cId").value = cfg.id;
         if (cfg.width != null) document.getElementById("cW").value = cfg.width;
         if (cfg.height != null) document.getElementById("cH").value = cfg.height;
+        if (cfg.general_buffer != null)
+          document.getElementById("cBuffer").value = cfg.general_buffer;
 
         const p = cfg.placement;
         if (p) {
@@ -1496,6 +1506,8 @@
           id: c.id,
           width: Number(c.width),
           height: Number(c.height),
+          general_buffer:
+            c.general_buffer == null ? null : Number(c.general_buffer),
           markers: (c.markers || []).map((m) => ({
             id: String(m.id),
             x: Number(m.position.x),
@@ -1558,6 +1570,10 @@
         if (!numEq(num("cH"), base.height)) {
           document.getElementById("cH").classList.add("changed");
           changes.push("height");
+        }
+        if (base.general_buffer != null && !numEq(num("cBuffer"), base.general_buffer)) {
+          document.getElementById("cBuffer").classList.add("changed");
+          changes.push("general buffer");
         }
 
         // Placement (numeric fields + the strategy select). Skipped if the server
@@ -1810,6 +1826,7 @@
           id: document.getElementById("cId").value.trim(),
           width: num("cW"),
           height: num("cH"),
+          general_buffer: num("cBuffer"),
           markers,
           regions,
           placement: {
@@ -1862,6 +1879,7 @@
           id: id,
           width: num("cW"),
           height: num("cH"),
+          general_buffer: num("cBuffer"),
           markers,
           regions,
           placement: {
