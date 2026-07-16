@@ -58,7 +58,7 @@
         letter-spacing: 0.1em;
       }
       .nav a {
-        color: #666;
+        color: #a49d8e;
         text-decoration: none;
       }
       .nav a:hover {
@@ -74,7 +74,7 @@
       }
       .token-row label {
         font-size: 0.58rem;
-        color: #444;
+        color: #9a9284;
         text-transform: uppercase;
         letter-spacing: 0.1em;
       }
@@ -95,7 +95,7 @@
         font-size: 0.58rem;
         text-transform: uppercase;
         letter-spacing: 0.1em;
-        color: #888;
+        color: #b8b1a2;
       }
       .dot {
         width: 7px;
@@ -140,16 +140,16 @@
         gap: 0.6rem;
       }
       .panel h2 .count {
-        color: #666;
+        color: #a49d8e;
         font-weight: 400;
         letter-spacing: 0.05em;
       }
       .muted {
-        color: #666;
+        color: #a49d8e;
         font-size: 0.62rem;
       }
       .hint {
-        color: #555;
+        color: #948d80;
         font-size: 0.58rem;
         margin-top: 0.3rem;
         line-height: 1.5;
@@ -188,8 +188,8 @@
         background: #e74c3c;
       }
       button.ghost {
-        border-color: #444;
-        color: #888;
+        border-color: #5c584e;
+        color: #c4bdae;
       }
       button.ghost:hover {
         background: #2a2a2a;
@@ -218,7 +218,7 @@
       }
       th {
         text-align: left;
-        color: #555;
+        color: #a49d8e;
         text-transform: uppercase;
         letter-spacing: 0.08em;
         font-weight: 400;
@@ -250,8 +250,8 @@
         color: #e0bb55;
       }
       .s-stale {
-        background: #2a2a2a;
-        color: #888;
+        background: #33322e;
+        color: #c4bdae;
       }
 
       /* ── Form fields ── */
@@ -264,7 +264,7 @@
         font-size: 0.55rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        color: #666;
+        color: #b0a99a;
       }
       input[type="text"],
       input[type="number"],
@@ -322,10 +322,43 @@
         font-size: 0.58rem;
         text-transform: uppercase;
         letter-spacing: 0.1em;
-        color: #888;
+        color: #c2bbac;
         margin: 0.9rem 0 0.4rem;
         border-top: 1px solid #1a1a1a;
         padding-top: 0.7rem;
+      }
+
+      /* ── Canvas tabs ── */
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+        margin-bottom: 0.8rem;
+        border-bottom: 1px solid #1e1e1e;
+      }
+      .tab {
+        font-family: "DM Mono", monospace;
+        font-size: 0.6rem;
+        letter-spacing: 0.06em;
+        text-transform: none;
+        border: 1px solid #1e1e1e;
+        border-bottom: none;
+        background: #0c0c0a;
+        color: #c4bdae;
+        padding: 0.35rem 0.7rem;
+        cursor: pointer;
+        margin-bottom: -1px;
+        transition: none;
+      }
+      .tab:hover {
+        background: #1a1a16;
+        color: #f5f0e8;
+      }
+      .tab.active {
+        background: #121210;
+        color: #d4a843;
+        border-color: #2a2a2a;
+        border-bottom: 1px solid #121210;
       }
 
       /* ── Canvas visual ── */
@@ -337,7 +370,7 @@
         justify-content: space-between;
         align-items: baseline;
         font-size: 0.62rem;
-        color: #aaa;
+        color: #c8c1b2;
         margin-bottom: 0.4rem;
       }
       .canvas-card svg {
@@ -352,7 +385,7 @@
         gap: 0.9rem;
         flex-wrap: wrap;
         font-size: 0.55rem;
-        color: #777;
+        color: #b0a99a;
         margin-top: 0.4rem;
       }
       .legend span::before {
@@ -642,6 +675,9 @@
 
         <div class="btn-row">
           <button class="gold" onclick="saveCanvas()">Save canvas</button>
+          <button class="gold" onclick="saveCanvasWithOccupancy()">
+            Save with occupancy
+          </button>
           <button class="danger" onclick="clearDrawings()">Clear drawings</button>
           <button class="danger" onclick="deleteCanvas()">Delete canvas</button>
         </div>
@@ -875,18 +911,45 @@
         }
       }
 
+      /** Canvas id whose tab is currently open in the visualizer. */
+      let activeCanvasTab = null;
+
+      /** @param {string} id */
+      function selectCanvasTab(id) {
+        activeCanvasTab = id;
+        renderCanvasVisuals(window._canvases || [], (window._lastBots || []));
+      }
+
       /** @param {any[]} canvases @param {any[]} bots */
       function renderCanvasVisuals(canvases, bots) {
+        bots = bots || [];
+        window._lastBots = bots; // so a tab click can re-render without a fetch
         document.getElementById("canvasCount").textContent =
           canvases.length + " configured";
         const host_ = document.getElementById("canvasVisuals");
         if (!canvases.length) {
+          activeCanvasTab = null;
           host_.innerHTML = '<div class="muted">No canvases configured.</div>';
           return;
         }
-        host_.innerHTML = canvases
-          .map((c) => canvasCard(c, bots || []))
-          .join("");
+        // Keep the open tab if it still exists; otherwise fall back to the first.
+        if (!canvases.some((c) => c.id === activeCanvasTab)) {
+          activeCanvasTab = canvases[0].id;
+        }
+        const active = canvases.find((c) => c.id === activeCanvasTab);
+        const tabs =
+          canvases.length > 1
+            ? `<div class="tabs">` +
+              canvases
+                .map(
+                  (c) =>
+                    `<button class="tab${c.id === activeCanvasTab ? " active" : ""}" ` +
+                    `onclick="selectCanvasTab('${esc(c.id)}')">${esc(c.id)}</button>`,
+                )
+                .join("") +
+              `</div>`
+            : "";
+        host_.innerHTML = tabs + canvasCard(active, bots);
       }
 
       /** @param {any} c @param {any[]} bots @returns {string} */
@@ -1301,9 +1364,10 @@
             const width = parseFloat(row.querySelector(".rg-w").value);
             const height = parseFloat(row.querySelector(".rg-h").value);
             const robot = row.querySelector(".rg-robot").value.trim();
+            const color = row.querySelector(".rg-color").value;
             if (!id || isNaN(x) || isNaN(y) || isNaN(width) || isNaN(height))
               return null;
-            return { id, x, y, width, height, robot: robot || null };
+            return { id, x, y, width, height, robot: robot || null, color };
           })
           .filter(Boolean);
 
@@ -1385,6 +1449,41 @@
         }
       }
       
+
+      /**
+       * Save the current editor state while preserving the canvas's already-placed
+       * drawings (and the occupancy they reserve). Plain "Save canvas" re-posts the
+       * canvas with an empty `drawings` list, which resets its occupancy — use this
+       * when you've only tweaked config (regions, colors, placement) and want the
+       * existing drawings to stay put. The drawings come from the last server
+       * snapshot in `window._canvases`, so Refresh first if they may be stale.
+       * @returns {Promise<void>}
+       */
+      async function saveCanvasWithOccupancy() {
+        if (!tok()) return editorToast("Enter admin token", false);
+        const payload = buildCanvasPayloadWithOccupancy();
+        if (!payload.id) return editorToast("Canvas id is required", false);
+        if (!payload.regions.length)
+          return editorToast("Add at least one region", false);
+        try {
+          const res = await fetch(`${host}/api/robots/canvases`, {
+            method: "POST",
+            headers: authHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const t = await res.text();
+            return editorToast("Save failed: " + t.slice(0, 160), false);
+          }
+          editorToast(
+            `Saved "${payload.id}" — ${payload.regions.length} regions, ${payload.markers.length} markers, ${payload.drawings.length} drawing(s)`,
+            true,
+          );
+          refreshAll();
+        } catch (e) {
+          editorToast("Network error: " + e, false);
+        }
+      }
 
       async function deleteCanvas() {
         if (!tok()) return editorToast("Enter admin token", false);
