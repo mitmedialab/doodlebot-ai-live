@@ -427,7 +427,7 @@
       <button class="ghost tiny" onclick="refreshAll()">Refresh</button>
       <button 
       class="ghost tiny" 
-      onclick="window.open(`./static/bust?token=${ new URLSearchParams(window.location.search).get('token')}`, '_blank')">
+      onclick="window.open(`./static/bust?token=${window['tok']()}`, '_blank')">
       Static Cache Bust
     </button>
       <div class="token-row">
@@ -736,6 +736,8 @@
         refreshAll();
       });
       const tok = () => tokenInput.value.trim();
+      window["tok"] = tok;
+
       const authHeaders = (extra) =>
         Object.assign({ "X-Admin-Token": tok() }, extra || {});
 
