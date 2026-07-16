@@ -218,7 +218,15 @@ def _build_canvas(cfg: CanvasConfig) -> Canvas:
         width=cfg.width,
         height=cfg.height,
         markers=[
-            Marker(id=m.id, x=m.position.x, y=m.position.y, size_mm=m.sizeMm)
+            Marker(
+                id=m.id,
+                x=m.position.x,
+                y=m.position.y,
+                size_mm=m.sizeMm,
+                yaw=canvas_engine.edge_yaw(
+                    m.position.x, m.position.y, cfg.width, cfg.height
+                ),
+            )
             for m in cfg.markers
         ],
         regions=[

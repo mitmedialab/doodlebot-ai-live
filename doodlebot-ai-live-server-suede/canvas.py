@@ -715,15 +715,6 @@ class FootprintCache:
 
 
 @dataclass
-class PlacedDrawing:
-    job_id: str
-    anchor_x: float
-    anchor_y: float
-    angle_deg: float
-    commands: list[DrawingCommand]
-
-
-@dataclass
 class Region:
     """A rectangular area of a canvas drawn by one robot, with its occupancy grid."""
 
