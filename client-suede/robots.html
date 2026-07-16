@@ -210,6 +210,28 @@
         margin-top: 0.8rem;
       }
 
+      /* ── Well: a labeled, inset group of related actions ── */
+      .well {
+        border: 1px solid #2a2a2a;
+        background: #0b0b09;
+        border-radius: 2px;
+        padding: 0.75rem 0.85rem;
+        margin-top: 0.9rem;
+      }
+      .well-label {
+        font-size: 0.58rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #c2bbac;
+        margin-bottom: 0.55rem;
+      }
+      .well .btn-row {
+        margin-top: 0;
+      }
+      .well .hint {
+        margin-top: 0.55rem;
+      }
+
       /* ── Tables ── */
       table {
         width: 100%;
@@ -653,39 +675,69 @@
           </button>
         </div>
 
-        <div class="btn-row">
-          <button class="ghost" onclick="exportConfig()">Export config</button>
-          <button class="ghost" onclick="exportConfigWithOccupancy()">Export config with occupancy</button>
-          <button class="ghost" onclick="document.getElementById('importFile').click()">
-            Import config
-          </button>
-          <button class="ghost" onclick="document.getElementById('importFileWithOccupancy').click()">
-            Import config with occupancy
-          </button>
-          <input
-            type="file"
-            id="importFile"
-            accept="application/json,.json"
-            style="display: none"
-            onchange="importConfig(this)"
-          />
-          <input
-            type="file"
-            id="importFileWithOccupancy"
-            accept="application/json,.json"
-            style="display: none"
-            onchange="importConfigWithOccupancy(this)"
-          />
+        <!-- Server actions: write / reset this canvas on the server. -->
+        <div class="well">
+          <div class="well-label">Canvas (server)</div>
+          <div class="btn-row">
+            <button class="gold" onclick="saveCanvasWithOccupancy()">
+              Update canvas
+            </button>
+            <button class="danger" onclick="clearDrawings()">
+              Clear drawings
+            </button>
+            <button class="danger" onclick="deleteCanvas()">Delete canvas</button>
+          </div>
+          <div class="hint">
+            <strong>Update canvas</strong> writes the config above to the server and
+            keeps whatever drawings are already placed on this canvas. To reset it to
+            no drawings, use <strong>Clear drawings</strong> explicitly.
+          </div>
         </div>
 
-        <div class="btn-row">
-          <button class="gold" onclick="saveCanvas()">Save canvas</button>
-          <button class="gold" onclick="saveCanvasWithOccupancy()">
-            Save with occupancy
-          </button>
-          <button class="danger" onclick="clearDrawings()">Clear drawings</button>
-          <button class="danger" onclick="deleteCanvas()">Delete canvas</button>
+        <!-- File actions: move configs to / from JSON files on disk. -->
+        <div class="well">
+          <div class="well-label">Import / export (JSON files)</div>
+          <div class="btn-row">
+            <button class="ghost" onclick="exportConfig()">Export config</button>
+            <button class="ghost" onclick="exportConfigWithOccupancy()">
+              Export with occupancy
+            </button>
+            <button
+              class="ghost"
+              onclick="document.getElementById('importFile').click()"
+            >
+              Import config
+            </button>
+            <button
+              class="ghost"
+              onclick="document.getElementById('importFileWithOccupancy').click()"
+            >
+              Import with occupancy
+            </button>
+            <input
+              type="file"
+              id="importFile"
+              accept="application/json,.json"
+              style="display: none"
+              onchange="importConfig(this)"
+            />
+            <input
+              type="file"
+              id="importFileWithOccupancy"
+              accept="application/json,.json"
+              style="display: none"
+              onchange="importConfigWithOccupancy(this)"
+            />
+          </div>
+          <div class="hint">
+            <strong>Export</strong> downloads the current editor state as a JSON file.
+            <strong>Import config</strong> loads a file into the editor for review —
+            click <strong>Update canvas</strong> to apply it.
+            <strong>Import with occupancy</strong> loads and applies to the server
+            immediately, drawings included.
+          </div>
         </div>
+
         <div class="toast" id="editorToast"></div>
         <div class="hint">
           Markers and regions use the same global mm frame (x →, y ↓), origin at
