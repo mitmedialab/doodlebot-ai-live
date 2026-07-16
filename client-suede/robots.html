@@ -431,6 +431,72 @@
         <div id="queueList" style="display: none; margin-top: 0.8rem"></div>
       </section>
 
+      <!-- ── Virtual robots ─────────────────────────────────────────── -->
+      <section class="panel col-wide" id="virtualPanel">
+        <h2>
+          Virtual robots
+          <span class="count" id="virtualCount"></span>
+          <span class="hdr-space"></span>
+          <button class="ghost tiny" onclick="spawnAllAssigned()">
+            Spawn all assigned
+          </button>
+          <button class="ghost tiny" onclick="stopAllVirtual()">Stop all</button>
+        </h2>
+        <div class="muted" style="margin-bottom: 0.7rem">
+          Each virtual robot runs the real <code>Locate → Poll → Draw</code> loop
+          in your browser — checking in to
+          <code>/api/robots/checkin</code> once a second, taking whatever job the
+          coordinator stages, then simulating the draw + exit. No admin token
+          needed (check-in is the robot protocol). A robot only gets work if its
+          name matches a region's <em>robot</em> field, so assign regions in the
+          canvas config below first.
+        </div>
+
+        <div class="grid3" style="margin-bottom: 0.6rem">
+          <div class="field">
+            <label>Robot name</label>
+            <input type="text" id="vName" placeholder="bot-0" />
+          </div>
+          <div class="field">
+            <label>Locate time (s)</label>
+            <input type="number" id="vLocate" value="2" step="any" min="0" />
+          </div>
+          <div class="field">
+            <label>Draw time (s, 0 = auto)</label>
+            <input type="number" id="vDraw" value="0" step="any" min="0" />
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="gold" onclick="spawnVirtualFromInput()">
+            Spawn robot
+          </button>
+        </div>
+
+        <table style="margin-top: 0.8rem">
+          <thead>
+            <tr>
+              <th>Bot</th>
+              <th>State</th>
+              <th>Canvas · Region</th>
+              <th>Pose (x, y, θ)</th>
+              <th>Check-ins</th>
+              <th>Last reply</th>
+              <th>Current job</th>
+              <th>Drawn</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="virtualBody">
+            <tr>
+              <td colspan="9" class="muted">
+                No virtual robots — spawn one above.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="toast" id="virtualToast"></div>
+      </section>
+
       <!-- ── Canvas visualizer ──────────────────────────────────────── -->
       <section class="panel" id="visualPanel">
         <h2>Canvases <span class="count" id="canvasCount"></span></h2>
@@ -1433,6 +1499,244 @@
           arc(r, 180),
           arc(r, -180),
         ];
+      }
+
+      // ── Virtual robots ────────────────────────────────────────────────────────
+      //
+      // A virtual robot is a browser-side simulation of a real Doodlebot: it runs
+      // the same Locate → Poll → Draw loop against the live server so you can
+      // exercise the whole coordinator (placement, occupancy, exit poses, the
+      // gallery/display views) without any physical hardware. Each one owns a
+      // ~1s check-in timer and a tiny state machine:
+      //
+      //   locating ──(after `locate` s)──▶ ready ──(server says "draw")──▶ drawing
+      //        ▲                                                             │
+      //        └──────────────────(after the draw completes)────────────────┘
+      //
+      // Check-in needs no admin token — it's the robot wire protocol, open to bots.
+      /** @type {Map<string, any>} */
+      const virtualBots = new Map();
+
+      /** Find the {canvas, region} a robot name is assigned to, or null. */
+      function regionForRobotName(name) {
+        for (const c of window._canvases || []) {
+          for (const r of c.regions || []) {
+            if (r.robot === name) return { canvas: c, region: r };
+          }
+        }
+        return null;
+      }
+
+      /** Center pose of a region rect (mm), used as the bot's resting pose. */
+      function regionCenterPose(r) {
+        return {
+          x: r.x + r.width / 2,
+          y: r.y + r.height / 2,
+          headingDegrees: 0,
+        };
+      }
+
+      /** Spawn (or restart) a virtual robot with the given name. */
+      function spawnVirtual(name) {
+        name = (name || "").trim();
+        if (!name) return virtualToast("Enter a robot name", false);
+        if (virtualBots.has(name)) {
+          virtualToast(`"${name}" is already running`, false);
+          return;
+        }
+        const assignment = regionForRobotName(name);
+        const pose = assignment
+          ? regionCenterPose(assignment.region)
+          : { x: 0, y: 0, headingDegrees: 0 };
+        const locateS = Math.max(0, num("vLocate") || 0);
+        const drawS = Math.max(0, num("vDraw") || 0); // 0 → auto from command count
+
+        const vr = {
+          name,
+          status: "locating",
+          pose,
+          restPose: pose,
+          checkins: 0,
+          lastReply: "—",
+          currentJob: null,
+          completed: 0,
+          locateMs: locateS * 1000,
+          drawOverrideMs: drawS * 1000,
+          spawnedAt: Date.now(),
+          drawStartedAt: 0,
+          drawMs: 0,
+          exitPose: null,
+          busy: false, // guards against overlapping check-ins
+          timer: 0,
+        };
+        virtualBots.set(name, vr);
+        // First tick immediately, then once a second — matches the real bot cadence.
+        vrTick(vr);
+        vr.timer = setInterval(() => vrTick(vr), 1000);
+        renderVirtualRobots();
+        if (!assignment) {
+          virtualToast(
+            `Spawned "${name}" — but no region is assigned to it, so it will only ever get "wait". Assign it a region below.`,
+            false,
+          );
+        } else {
+          virtualToast(
+            `Spawned "${name}" on ${assignment.canvas.id} · ${assignment.region.id}`,
+            true,
+          );
+        }
+      }
+
+      function spawnVirtualFromInput() {
+        spawnVirtual(document.getElementById("vName").value);
+      }
+
+      /** Spawn a virtual robot for every region that names a robot (idempotent). */
+      function spawnAllAssigned() {
+        const names = new Set();
+        for (const c of window._canvases || [])
+          for (const r of c.regions || []) if (r.robot) names.add(r.robot);
+        if (!names.size)
+          return virtualToast(
+            "No regions have a robot assigned — set one in the canvas config.",
+            false,
+          );
+        let spawned = 0;
+        names.forEach((n) => {
+          if (!virtualBots.has(n)) {
+            spawnVirtual(n);
+            spawned++;
+          }
+        });
+        virtualToast(
+          spawned
+            ? `Spawned ${spawned} robot${spawned === 1 ? "" : "s"}`
+            : "All assigned robots already running",
+          true,
+        );
+      }
+
+      /** Stop + forget one virtual robot (its server record just goes stale). */
+      function stopVirtual(name) {
+        const vr = virtualBots.get(name);
+        if (!vr) return;
+        clearInterval(vr.timer);
+        virtualBots.delete(name);
+        renderVirtualRobots();
+      }
+
+      function stopAllVirtual() {
+        [...virtualBots.keys()].forEach(stopVirtual);
+        virtualToast("Stopped all virtual robots", true);
+      }
+
+      /** One beat of a virtual robot: advance its state machine, then check in. */
+      async function vrTick(vr) {
+        if (vr.busy) return; // a slow request is still in flight; skip this beat
+        const now = Date.now();
+
+        // ── advance the state machine before reporting status ──
+        if (vr.status === "locating" && now - vr.spawnedAt >= vr.locateMs) {
+          vr.status = "ready";
+          vr.pose = vr.restPose;
+        } else if (
+          vr.status === "drawing" &&
+          now - vr.drawStartedAt >= vr.drawMs
+        ) {
+          // Finished the drawing: drive to the exit pose and re-join the pool.
+          if (vr.exitPose) vr.pose = vr.exitPose;
+          vr.status = "ready";
+          vr.completed++;
+          vr.currentJob = null;
+          vr.exitPose = null;
+        }
+
+        // ── report to the server and act on its reply ──
+        vr.busy = true;
+        try {
+          const res = await fetch(`${host}/api/robots/checkin`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: vr.name,
+              status: vr.status,
+              pose: vr.pose,
+            }),
+          });
+          if (!res.ok) {
+            vr.lastReply = "HTTP " + res.status;
+            return;
+          }
+          const data = await res.json();
+          vr.checkins++;
+          vr.lastReply = data.action;
+
+          if (data.action === "draw" && vr.status === "ready") {
+            // Took a job — navigate to the start point and begin "drawing".
+            vr.currentJob = data.jobId;
+            vr.pose = {
+              x: data.navigateTo.x,
+              y: data.navigateTo.y,
+              headingDegrees: data.navigateTo.headingDegrees,
+            };
+            vr.exitPose = data.exitPose || null;
+            vr.status = "drawing";
+            vr.drawStartedAt = Date.now();
+            // Auto-time the draw from the command count (≈150ms each, capped),
+            // unless the user pinned a fixed duration.
+            vr.drawMs =
+              vr.drawOverrideMs ||
+              Math.min(10000, 1200 + (data.commands || []).length * 150);
+          }
+        } catch (e) {
+          vr.lastReply = "offline";
+        } finally {
+          vr.busy = false;
+          renderVirtualRobots();
+        }
+      }
+
+      const VSTATE_CLS = {
+        locating: "s-locating",
+        ready: "s-ready",
+        drawing: "s-drawing",
+      };
+
+      function renderVirtualRobots() {
+        const bots = [...virtualBots.values()];
+        document.getElementById("virtualCount").textContent = bots.length
+          ? bots.length + " running"
+          : "";
+        const body = document.getElementById("virtualBody");
+        if (!bots.length) {
+          body.innerHTML =
+            '<tr><td colspan="9" class="muted">No virtual robots — spawn one above.</td></tr>';
+          return;
+        }
+        body.innerHTML = bots
+          .map((vr) => {
+            const a = regionForRobotName(vr.name);
+            const where = a ? `${a.canvas.id} · ${esc(a.region.id)}` : "unassigned";
+            const pose = `${vr.pose.x.toFixed(0)}, ${vr.pose.y.toFixed(0)}, ${vr.pose.headingDegrees.toFixed(0)}°`;
+            return `<tr>
+              <td>${esc(vr.name)}</td>
+              <td><span class="badge ${VSTATE_CLS[vr.status] || "s-stale"}">${vr.status}</span></td>
+              <td>${where}</td>
+              <td>${pose}</td>
+              <td>${vr.checkins}</td>
+              <td>${esc(vr.lastReply)}</td>
+              <td>${vr.currentJob ? esc(vr.currentJob) : "—"}</td>
+              <td>${vr.completed}</td>
+              <td><button class="ghost tiny" onclick="stopVirtual('${esc(vr.name)}')">Stop</button></td>
+            </tr>`;
+          })
+          .join("");
+      }
+
+      function virtualToast(msg, ok) {
+        const el = document.getElementById("virtualToast");
+        el.className = "toast " + (ok ? "ok" : "err");
+        el.textContent = msg;
       }
 
       // ── Helpers ──────────────────────────────────────────────────────────────
