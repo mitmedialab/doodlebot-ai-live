@@ -130,6 +130,7 @@ DrawingCommand = Union[LineCommand, SpinCommand, ArcCommand]
 class DrawJob:
     jobId: str
     navigateTo: Pose
+    navigateFrom: Pose
     commands: list[DrawingCommand]
     exitPose: Optional[Pose] = None
 
@@ -298,57 +299,6 @@ def send_command(cmd: str) -> None:
 CM_TO_STEPS = 7.16 * 16
 
 
-def estimate_final_pose(commands, start_pose):
-    """
-    Replay commands without moving the robot.
-    Returns final x, y, yaw.
-    """
-
-    x = start_pose.x
-    y = start_pose.y
-    yaw = start_pose.headingDegrees * math.pi / 180
-
-    for cmd in commands:
-
-        if isinstance(cmd, LineCommand):
-            if cmd.penDown:
-                # Move forward in current heading
-                distance = cmd.distance / 10  # same conversion as your code if needed
-
-                x += distance * math.cos(yaw)
-                y += distance * math.sin(yaw)
-
-            else:
-                # Pen-up movement is still movement
-                distance = cmd.distance / 10
-
-                x += distance * math.cos(yaw)
-                y += distance * math.sin(yaw)
-
-        elif isinstance(cmd, SpinCommand):
-            yaw += math.radians(cmd.degrees)
-
-        elif isinstance(cmd, ArcCommand):
-            # Arc math
-            radius = cmd.radius
-
-            angle = math.radians(cmd.degrees)
-
-            # center of rotation
-            cx = x - radius * math.sin(yaw)
-            cy = y + radius * math.cos(yaw)
-
-            yaw += angle
-
-            x = cx + radius * math.sin(yaw)
-            y = cy - radius * math.cos(yaw)
-
-    return Pose(
-        x=x,
-        y=y,
-        headingDegrees=yaw * 180 / math.pi,
-    )
-
 
 def execute_commands(commands: list[DrawingCommand]) -> None:
     """Issue line/spin/arc commands to the drive + pen, in order."""
@@ -464,6 +414,11 @@ class ServerClient:
                 y=body["navigateTo"]["y"],
                 headingDegrees=body["navigateTo"].get("headingDegrees", 0.0),
             ),
+            navigateFrom=Pose(
+                x=body["navigateFrom"]["x"],
+                y=body["navigateFrom"]["y"],
+                headingDegrees=body["navigateFrom"].get("headingDegrees", 0.0),
+            )
             commands=[_parse_command(c) for c in body["commands"]],
             exitPose=body.get("exitPose", None),
         )
@@ -575,7 +530,6 @@ def run(client: ServerClient) -> None:
         print(job.navigateTo)
         navigate_to(job.navigateTo, pose)
         execute_commands(job.commands)
-        new_pose = estimate_final_pose(job.commands, job.navigateTo)
         if job.exitPose:
             navigate_to(
                 Pose(
@@ -583,7 +537,7 @@ def run(client: ServerClient) -> None:
                     y=job.exitPose["y"],
                     headingDegrees=job.exitPose["headingDegrees"],
                 ),
-                new_pose,
+                job.navigateFrom
             )
 
 
