@@ -505,11 +505,11 @@ def run(client: ServerClient) -> None:
                 execute_commands([SpinCommand(degrees=10)])
                 if alternate:
                     print("anger")
-                    display("(d,a)")
+                    # display("(d,a)")
                     alternate = False
                 else:
                     print("love")
-                    display("(d,O)")
+                    # display("(d,O)")
                     alternate = True
 
             # Poll for a job if we have a pose
