@@ -418,7 +418,7 @@ class ServerClient:
                 x=body["navigateFrom"]["x"],
                 y=body["navigateFrom"]["y"],
                 headingDegrees=body["navigateFrom"].get("headingDegrees", 0.0),
-            )
+            ),
             commands=[_parse_command(c) for c in body["commands"]],
             exitPose=body.get("exitPose", None),
         )
