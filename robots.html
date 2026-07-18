@@ -1,0 +1,2383 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Robot Orchestration — Admin</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Mono:wght@300;400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        min-height: 100%;
+        background: #0e0e0c;
+        font-family: "DM Mono", monospace;
+        color: #f5f0e8;
+        font-size: 13px;
+      }
+      a {
+        color: #5a9e5a;
+      }
+
+      /* ── Header ── */
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        gap: 1.2rem;
+        padding: 0 1.2rem;
+        height: 48px;
+        background: #080808;
+        border-bottom: 1px solid #1e1e1e;
+      }
+      header h1 {
+        font-family: "Playfair Display", serif;
+        font-size: 1.2rem;
+        white-space: nowrap;
+      }
+      header h1 em {
+        font-style: italic;
+        color: #d4a843;
+      }
+      .nav {
+        display: flex;
+        gap: 0.8rem;
+        font-size: 0.62rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+      .nav a {
+        color: #a49d8e;
+        text-decoration: none;
+      }
+      .nav a:hover {
+        color: #f5f0e8;
+      }
+      .hdr-space {
+        flex: 1;
+      }
+      .token-row {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .token-row label {
+        font-size: 0.58rem;
+        color: #9a9284;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+      .token-row input {
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid #333;
+        color: #f5f0e8;
+        font-family: "DM Mono", monospace;
+        font-size: 0.7rem;
+        padding: 0.15rem 0.3rem;
+        width: 140px;
+      }
+      .live {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.58rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #b8b1a2;
+      }
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #444;
+      }
+      .dot.ok {
+        background: #2d7d46;
+        box-shadow: 0 0 6px #2d7d46;
+      }
+      .dot.err {
+        background: #b5483d;
+      }
+
+      /* ── Layout ── */
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 1.2rem;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.2rem;
+        align-items: start;
+      }
+      .col-wide {
+        grid-column: 1 / -1;
+      }
+      .panel {
+        background: #121210;
+        border: 1px solid #1e1e1e;
+        padding: 1rem;
+      }
+      .panel h2 {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: #d4a843;
+        margin-bottom: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+      }
+      .panel h2 .count {
+        color: #a49d8e;
+        font-weight: 400;
+        letter-spacing: 0.05em;
+      }
+      .muted {
+        color: #a49d8e;
+        font-size: 0.62rem;
+      }
+      .hint {
+        color: #948d80;
+        font-size: 0.58rem;
+        margin-top: 0.3rem;
+        line-height: 1.5;
+      }
+
+      /* ── Buttons ── */
+      button {
+        font-family: "DM Mono", monospace;
+        font-size: 0.6rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1px solid #5a9e5a;
+        background: transparent;
+        color: #5a9e5a;
+        padding: 0.35rem 0.6rem;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      button:hover {
+        background: #5a9e5a;
+        color: #0e0e0c;
+      }
+      button.gold {
+        border-color: #d4a843;
+        color: #d4a843;
+      }
+      button.gold:hover {
+        background: #d4a843;
+        color: #0e0e0c;
+      }
+      button.danger {
+        background: #c0392b;
+        color: #fff;
+      }
+      button.danger:hover {
+        background: #e74c3c;
+      }
+      button.ghost {
+        border-color: #5c584e;
+        color: #c4bdae;
+      }
+      button.ghost:hover {
+        background: #2a2a2a;
+        color: #f5f0e8;
+      }
+      button.tiny {
+        padding: 0.15rem 0.4rem;
+        font-size: 0.55rem;
+      }
+      button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .btn-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.8rem;
+      }
+
+      /* ── Well: a labeled, inset group of related actions ── */
+      .well {
+        border: 1px solid #2a2a2a;
+        background: #0b0b09;
+        border-radius: 2px;
+        padding: 0.75rem 0.85rem;
+        margin-top: 0.9rem;
+      }
+      .well-label {
+        font-size: 0.58rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #c2bbac;
+        margin-bottom: 0.55rem;
+      }
+      .well .btn-row {
+        margin-top: 0;
+      }
+      .well .hint {
+        margin-top: 0.55rem;
+      }
+
+      /* ── Editor create/update mode: show only the active mode's controls ── */
+      #editorPanel[data-mode="create"] .only-update,
+      #editorPanel[data-mode="update"] .only-create {
+        display: none;
+      }
+      input[readonly] {
+        opacity: 0.65;
+        cursor: not-allowed;
+      }
+
+      /* ── Update-mode diff highlights ── */
+      input.changed,
+      select.changed {
+        border-color: #d4a843;
+        box-shadow: inset 3px 0 0 #d4a843;
+      }
+      .row-line.row-added {
+        outline: 1px dashed #2d7d46;
+        outline-offset: 3px;
+      }
+      .row-line.row-added input {
+        border-color: #2d7d46;
+      }
+      .diff-summary {
+        font-size: 0.6rem;
+        line-height: 1.6;
+        margin-top: 0.55rem;
+      }
+      .diff-summary.none {
+        color: #948d80;
+      }
+      .diff-summary.has {
+        color: #e8d9a0;
+      }
+
+      /* ── Tables ── */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.62rem;
+      }
+      th {
+        text-align: left;
+        color: #a49d8e;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 400;
+        padding: 0.3rem 0.4rem;
+        border-bottom: 1px solid #1e1e1e;
+      }
+      td {
+        padding: 0.35rem 0.4rem;
+        border-bottom: 1px solid #161614;
+      }
+      .badge {
+        display: inline-block;
+        padding: 0.1rem 0.4rem;
+        border-radius: 2px;
+        font-size: 0.55rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .s-ready {
+        background: #1c3a26;
+        color: #6cc488;
+      }
+      .s-drawing {
+        background: #16314d;
+        color: #6bb4ec;
+      }
+      .s-locating {
+        background: #3d3416;
+        color: #e0bb55;
+      }
+      .s-stale {
+        background: #33322e;
+        color: #c4bdae;
+      }
+
+      /* ── Form fields ── */
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+      }
+      .field label {
+        font-size: 0.55rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #b0a99a;
+      }
+      input[type="text"],
+      input[type="number"],
+      select {
+        background: #0c0c0a;
+        border: 1px solid #2a2a2a;
+        color: #f5f0e8;
+        font-family: "DM Mono", monospace;
+        font-size: 0.66rem;
+        padding: 0.3rem 0.4rem;
+        width: 100%;
+      }
+      input[type="color"] {
+        background: #0c0c0a;
+        border: 1px solid #2a2a2a;
+        padding: 2px;
+        width: 100%;
+        height: 26px; /* match the ~line-height of text/number inputs */
+        cursor: pointer;
+      }
+      input[type="color"]::-webkit-color-swatch-wrapper {
+        padding: 0;
+      }
+      input[type="color"]::-webkit-color-swatch {
+        border: none;
+      }
+      input:focus,
+      select:focus {
+        outline: none;
+        border-color: #d4a843;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.6rem;
+      }
+      .grid3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 0.5rem;
+      }
+      .row-line {
+        display: grid;
+        gap: 0.4rem;
+        align-items: end;
+        margin-bottom: 0.4rem;
+      }
+      .markers-line {
+        grid-template-columns: 1fr 1fr 1fr 1fr auto;
+      }
+      .regions-line {
+        grid-template-columns: 1fr 1fr 1fr 1fr 1fr auto;
+      }
+      .sub {
+        font-size: 0.58rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #c2bbac;
+        margin: 0.9rem 0 0.4rem;
+        border-top: 1px solid #1a1a1a;
+        padding-top: 0.7rem;
+      }
+
+      /* ── Canvas tabs ── */
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+        margin-bottom: 0.8rem;
+        border-bottom: 1px solid #1e1e1e;
+      }
+      .tab {
+        font-family: "DM Mono", monospace;
+        font-size: 0.6rem;
+        letter-spacing: 0.06em;
+        text-transform: none;
+        border: 1px solid #1e1e1e;
+        border-bottom: none;
+        background: #0c0c0a;
+        color: #c4bdae;
+        padding: 0.35rem 0.7rem;
+        cursor: pointer;
+        margin-bottom: -1px;
+        transition: none;
+      }
+      .tab:hover {
+        background: #1a1a16;
+        color: #f5f0e8;
+      }
+      .tab.active {
+        background: #121210;
+        color: #d4a843;
+        border-color: #2a2a2a;
+        border-bottom: 1px solid #121210;
+      }
+
+      /* ── Canvas visual ── */
+      .canvas-card {
+        margin-bottom: 1rem;
+      }
+      .canvas-card .cap {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        font-size: 0.62rem;
+        color: #c8c1b2;
+        margin-bottom: 0.4rem;
+      }
+      .canvas-card svg {
+        width: 100%;
+        height: auto;
+        background: #fff;
+        border: 1px solid #2a2a2a;
+        max-height: 420px;
+      }
+      .legend {
+        display: flex;
+        gap: 0.9rem;
+        flex-wrap: wrap;
+        font-size: 0.55rem;
+        color: #b0a99a;
+        margin-top: 0.4rem;
+      }
+      .legend span::before {
+        content: "";
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 0.3rem;
+        vertical-align: middle;
+        background: var(--c);
+      }
+      .toast {
+        font-size: 0.6rem;
+        margin-top: 0.6rem;
+        min-height: 1rem;
+      }
+      .toast.ok {
+        color: #6cc488;
+      }
+      .toast.err {
+        color: #d98b80;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Robot <em>Orchestration</em></h1>
+      <nav class="nav">
+        <a href="./gallery">Gallery</a>
+        <a href="./display">Display</a>
+      </nav>
+      <span class="hdr-space"></span>
+      <span class="live"><span id="liveDot" class="dot"></span><span id="liveText">idle</span></span>
+      <label class="live" style="cursor: pointer">
+        <input type="checkbox" id="autoRefresh" checked style="width: auto" />
+        auto
+      </label>
+      <button class="ghost tiny" onclick="refreshAll()">Refresh</button>
+      <button 
+      class="ghost tiny" 
+      onclick="window.open(`./static/bust?token=${window['tok']()}`, '_blank')">
+      Static Cache Bust
+    </button>
+      <div class="token-row">
+        <label>Token</label>
+        <input id="adminToken" placeholder="admin token…" autocomplete="off" />
+      </div>
+    </header>
+
+    <main>
+      <!-- ── Robot pool ──────────────────────────────────────────────── -->
+      <section class="panel col-wide" id="poolPanel">
+        <h2>
+          Robot pool
+          <span class="count" id="poolCount"></span>
+          <span class="hdr-space"></span>
+          <span class="count" id="queueCount"></span>
+          <button class="ghost tiny" onclick="toggleQueue()">Inspect queue</button>
+          <button class="ghost tiny" onclick="clearQueue()">Clear queue</button>
+        </h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Bot</th>
+              <th>Status</th>
+              <th>Canvas · Region</th>
+              <th>Region free</th>
+              <th>Pose (x, y, θ)</th>
+              <th>Idle</th>
+              <th>Last seen</th>
+              <th>Staged job</th>
+            </tr>
+          </thead>
+          <tbody id="poolBody">
+            <tr>
+              <td colspan="8" class="muted">No data yet — enter a token.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div id="queueList" style="display: none; margin-top: 0.8rem"></div>
+      </section>
+
+      <!-- ── Virtual robots ─────────────────────────────────────────── -->
+      <section class="panel col-wide" id="virtualPanel">
+        <h2>
+          Virtual robots
+          <span class="count" id="virtualCount"></span>
+          <span class="hdr-space"></span>
+          <button class="ghost tiny" onclick="spawnAllAssigned()">
+            Spawn all assigned
+          </button>
+          <button class="ghost tiny" onclick="stopAllVirtual()">Stop all</button>
+        </h2>
+        <div class="muted" style="margin-bottom: 0.7rem">
+          Each virtual robot runs the real <code>Locate → Poll → Draw</code> loop
+          in your browser — checking in to
+          <code>/api/robots/checkin</code> once a second, taking whatever job the
+          coordinator stages, then simulating the draw + exit. No admin token
+          needed (check-in is the robot protocol). A robot only gets work if its
+          name matches a region's <em>robot</em> field, so assign regions in the
+          canvas config below first.
+        </div>
+
+        <div class="grid3" style="margin-bottom: 0.6rem">
+          <div class="field">
+            <label>Robot name</label>
+            <input type="text" id="vName" placeholder="bot-0" />
+          </div>
+          <div class="field">
+            <label>Locate time (s)</label>
+            <input type="number" id="vLocate" value="2" step="any" min="0" />
+          </div>
+          <div class="field">
+            <label>Draw time (s, 0 = auto)</label>
+            <input type="number" id="vDraw" value="0" step="any" min="0" />
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="gold" onclick="spawnVirtualFromInput()">
+            Spawn robot
+          </button>
+        </div>
+
+        <table style="margin-top: 0.8rem">
+          <thead>
+            <tr>
+              <th>Bot</th>
+              <th>State</th>
+              <th>Canvas · Region</th>
+              <th>Pose (x, y, θ)</th>
+              <th>Check-ins</th>
+              <th>Last reply</th>
+              <th>Current job</th>
+              <th>Drawn</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="virtualBody">
+            <tr>
+              <td colspan="9" class="muted">
+                No virtual robots — spawn one above.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="toast" id="virtualToast"></div>
+      </section>
+
+      <!-- ── Canvas visualizer ──────────────────────────────────────── -->
+      <section class="panel" id="visualPanel">
+        <h2>Canvases <span class="count" id="canvasCount"></span></h2>
+        <div id="canvasVisuals">
+          <div class="muted">No canvases loaded.</div>
+        </div>
+        <div class="legend">
+          <span style="--c: #2d7d46">region fill</span>
+          <span style="--c: #d4a843">aruco marker</span>
+          <span style="--c: #6bb4ec">bot drawing</span>
+          <span style="--c: #6cc488">bot ready</span>
+        </div>
+      </section>
+
+      <!-- ── Canvas configuration ───────────────────────────────────── -->
+      <section class="panel" id="editorPanel">
+        <h2>Configure canvas</h2>
+
+        <div class="tabs">
+          <button id="tabCreate" class="tab" onclick="setEditorMode('create')">
+            Create new
+          </button>
+          <button id="tabUpdate" class="tab" onclick="setEditorMode('update')">
+            Update existing
+          </button>
+        </div>
+
+        <div class="muted only-create" style="margin-bottom: 0.7rem">
+          Define a brand-new canvas. The <strong>id</strong> must be unique —
+          creating one that already exists is blocked (switch to
+          <em>Update existing</em> for that).
+        </div>
+        <div class="muted only-update" style="margin-bottom: 0.7rem">
+          Pick a canvas to edit — it loads into the form below and is focused in the
+          Canvases display so you can see exactly what you're changing. Edits apply
+          on <strong>Update canvas</strong>.
+        </div>
+
+        <div class="field only-update" style="margin-bottom: 0.6rem">
+          <label>Canvas to update</label>
+          <div style="display: flex; gap: 0.5rem">
+            <select
+              id="loadSelect"
+              style="flex: 1"
+              onchange="loadSelected()"
+            ></select>
+            <button class="ghost tiny" onclick="loadSelected()">Reload</button>
+          </div>
+        </div>
+
+        <div class="grid3">
+          <div class="field">
+            <label>Canvas id</label>
+            <input type="text" id="cId" value="main" />
+          </div>
+          <div class="field">
+            <label>Width (mm)</label>
+            <input type="number" id="cW" value="915" step="any" />
+          </div>
+          <div class="field">
+            <label>Height (mm)</label>
+            <input type="number" id="cH" value="530" step="any" />
+          </div>
+          <div class="field">
+            <label>General buffer (mm)</label>
+            <input type="number" id="cBuffer" value="30" step="any" />
+          </div>
+        </div>
+        <div class="hint">
+          General buffer is the clearance kept between separate drawings on the
+          canvas.
+        </div>
+        <div class="btn-row">
+          <button class="ghost tiny" onclick="setSize(1219.2, 2438.4)">
+            4 × 8 ft
+          </button>
+          <button class="ghost tiny" onclick="setSize(1219.2, 1219.2)">
+            4 × 4 ft
+          </button>
+          <button class="ghost tiny" onclick="setSize(914.4, 1828.8)">
+            3 × 6 ft
+          </button>
+        </div>
+
+        <div class="sub">Placement</div>
+        <div class="grid3">
+          <div class="field">
+            <label>Cell (mm)</label>
+            <input type="number" id="pCell" value="5" step="any" />
+          </div>
+          <div class="field">
+            <label>Pen (mm)</label>
+            <input type="number" id="pPen" value="5" step="any" />
+          </div>
+          <div class="field">
+            <label>Clearance (mm)</label>
+            <input type="number" id="pClear" value="8" step="any" />
+          </div>
+          <div class="field">
+            <label>Search step</label>
+            <input type="number" id="pStep" value="2" step="1" />
+          </div>
+          <div class="field">
+            <label>Angle step (°)</label>
+            <input type="number" id="pAngle" value="15" step="any" />
+          </div>
+          <div class="field">
+            <label>Strategy</label>
+            <select id="pStrategy">
+              <option value="scatter">scatter (organic)</option>
+              <option value="origin">origin (dense)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Target footprint (mm)</label>
+            <input type="number" id="pTargetFootprint" value="200" step="any" />
+          </div>
+          <div class="field">
+            <label>Min footprint scale</label>
+            <input type="number" id="pMinScale" value="0.4" step="any" />
+          </div>
+        </div>
+
+        <div class="sub">Aruco markers</div>
+        <div id="markersList"></div>
+        <button class="ghost tiny" onclick="addMarkerRow()">+ marker</button>
+
+        <div class="sub">Regions (one robot per region)</div>
+        <div id="regionsList"></div>
+        <div class="btn-row">
+          <button class="ghost tiny" onclick="addRegionRow()">+ region</button>
+        </div>
+        <div class="field" style="margin-top: 0.6rem">
+          <label>Auto-grid regions (rows × cols → bot-0, bot-1, …)</label>
+          <div class="grid3">
+            <input type="number" id="gRows" value="4" step="1" min="1" />
+            <input type="number" id="gCols" value="2" step="1" min="1" />
+            <input type="text" id="gPrefix" value="bot-" />
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="ghost tiny" onclick="autoGridRegions()">
+            Generate grid
+          </button>
+        </div>
+
+        <!-- Server actions: write / reset this canvas on the server. -->
+        <div class="well">
+          <div class="well-label only-create">Create (server)</div>
+          <div class="well-label only-update">Canvas (server)</div>
+          <div class="btn-row only-create">
+            <button class="gold" onclick="createCanvas()">Create canvas</button>
+          </div>
+          <div class="btn-row only-update">
+            <button class="gold" onclick="updateCanvas()">Update canvas</button>
+            <button class="danger" onclick="clearDrawings()">
+              Clear drawings
+            </button>
+            <button class="danger" onclick="deleteCanvas()">Delete canvas</button>
+          </div>
+          <div id="diffSummary" class="diff-summary only-update"></div>
+          <div class="hint only-create">
+            <strong>Create canvas</strong> registers a new canvas on the server. It
+            errors if the id is already taken.
+          </div>
+          <div class="hint only-update">
+            <strong>Update canvas</strong> writes the config above to the selected
+            canvas and keeps whatever drawings are already placed on it. Fields that
+            differ from the server are highlighted
+            <span style="color: #d4a843">gold</span>, added markers/regions outlined
+            <span style="color: #2d7d46">green</span>. To reset it to no drawings, use
+            <strong>Clear drawings</strong> explicitly.
+          </div>
+        </div>
+
+        <!-- File actions: move configs to / from JSON files on disk. -->
+        <div class="well">
+          <div class="well-label">Import / export (JSON files)</div>
+          <div class="btn-row">
+            <button class="ghost" onclick="exportConfig()">Export config</button>
+            <button class="ghost" onclick="exportConfigWithOccupancy()">
+              Export with occupancy
+            </button>
+            <button
+              class="ghost"
+              onclick="document.getElementById('importFile').click()"
+            >
+              Import config
+            </button>
+            <button
+              class="ghost"
+              onclick="document.getElementById('importFileWithOccupancy').click()"
+            >
+              Import with occupancy
+            </button>
+            <input
+              type="file"
+              id="importFile"
+              accept="application/json,.json"
+              style="display: none"
+              onchange="importConfig(this)"
+            />
+            <input
+              type="file"
+              id="importFileWithOccupancy"
+              accept="application/json,.json"
+              style="display: none"
+              onchange="importConfigWithOccupancy(this)"
+            />
+          </div>
+          <div class="hint">
+            <strong>Export</strong> downloads the current editor state as a JSON file.
+            <strong>Import config</strong> loads a file into the editor for review and
+            picks Create or Update depending on whether its id already exists — apply
+            it with that button. <strong>Import with occupancy</strong> loads and
+            applies to the server immediately, drawings included.
+          </div>
+        </div>
+
+        <div class="toast" id="editorToast"></div>
+        <div class="hint">
+          Markers and regions use the same global mm frame (x →, y ↓), origin at
+          the canvas's top-left corner.
+        </div>
+      </section>
+
+      <!-- ── Test drawing ───────────────────────────────────────────── -->
+      <section class="panel" id="testPanel">
+        <h2>Enqueue test drawing</h2>
+        <div class="muted" style="margin-bottom: 0.7rem">
+          Queue a simple shape (via <code>/api/robots/jobs</code>) to smoke-test
+          the pipeline — the coordinator picks a ready bot and places it.
+        </div>
+        <div class="field" style="margin-bottom: 0.6rem">
+          <label>Size (mm)</label>
+          <input type="number" id="testSize" value="120" step="any" />
+        </div>
+        <div class="btn-row">
+          <button onclick="enqueueTest('square')">Square</button>
+          <button onclick="enqueueTest('triangle')">Triangle</button>
+          <button onclick="enqueueTest('wave')">Wave (arcs)</button>
+        </div>
+        <div class="toast" id="testToast"></div>
+        <div class="hint">
+          A leading pen-up move is included so the server's lead-in stripping +
+          placement behaves exactly as it does for real vectorizations.
+        </div>
+      </section>
+    </main>
+
+    <script>
+      // ── Host + token (mirrors gallery.html) ────────────────────────────────
+      const MODE = "PROD";
+      const host =
+        MODE === "DEV"
+          ? "http://localhost:5001"
+          : "https://doodlebot.media.mit.edu/live";
+
+      const TOKEN_KEY = "doodlebot_admin_token";
+      const tokenInput = /** @type {HTMLInputElement} */ (
+        document.getElementById("adminToken")
+      );
+      const urlToken = new URLSearchParams(window.location.search).get("token");
+      tokenInput.value = urlToken || localStorage.getItem(TOKEN_KEY) || "";
+      tokenInput.addEventListener("input", () => {
+        localStorage.setItem(TOKEN_KEY, tok());
+        refreshAll();
+      });
+      const tok = () => tokenInput.value.trim();
+      window["tok"] = tok;
+
+      const authHeaders = (extra) =>
+        Object.assign({ "X-Admin-Token": tok() }, extra || {});
+
+      // ── Live status ────────────────────────────────────────────────────────
+      /** @param {"ok"|"err"|"idle"} state @param {string} msg */
+      function setLive(state, msg) {
+        const dot = document.getElementById("liveDot");
+        dot.className = "dot" + (state === "ok" ? " ok" : state === "err" ? " err" : "");
+        document.getElementById("liveText").textContent = msg;
+      }
+
+      // ── Robot pool ───────────────────────────────────────────────────────────
+      /** @returns {Promise<void>} */
+      async function refreshPool() {
+        const body = document.getElementById("poolBody");
+        try {
+          const res = await fetch(`${host}/api/robots`, {
+            headers: authHeaders(),
+          });
+          if (res.status === 401) {
+            setLive("err", "unauthorized");
+            body.innerHTML =
+              '<tr><td colspan="8" class="muted">Unauthorized — check token.</td></tr>';
+            return;
+          }
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          const pool = await res.json();
+          setLive("ok", "live");
+          renderPool(pool);
+          return pool;
+        } catch (e) {
+          setLive("err", "offline");
+          body.innerHTML =
+            '<tr><td colspan="8" class="muted">Could not reach server.</td></tr>';
+        }
+      }
+
+      /** @param {{bots: any[], queuedJobs: number}} pool */
+      function renderPool(pool) {
+        document.getElementById("poolCount").textContent =
+          pool.bots.length + " bot" + (pool.bots.length === 1 ? "" : "s");
+        document.getElementById("queueCount").textContent =
+          pool.queuedJobs + " job" + (pool.queuedJobs === 1 ? "" : "s") + " queued";
+
+        const body = document.getElementById("poolBody");
+        if (!pool.bots.length) {
+          body.innerHTML =
+            '<tr><td colspan="8" class="muted">No bots have checked in yet.</td></tr>';
+          return;
+        }
+        const regionToCanvas = window._regionToCanvas || {};
+        body.innerHTML = pool.bots
+          .map((b) => {
+            const stale = b.secondsSinceSeen > 5;
+            const statusCls = stale ? "s-stale" : "s-" + b.status;
+            const statusTxt = stale ? "offline" : b.status;
+            const canvas = regionToCanvas[b.region] || "—";
+            const free =
+              b.regionFreeFraction == null
+                ? "—"
+                : Math.round(b.regionFreeFraction * 100) + "% free";
+            const pose = `${b.pose.x.toFixed(0)}, ${b.pose.y.toFixed(0)}, ${b.pose.headingDegrees.toFixed(0)}°`;
+            return `<tr>
+              <td>${esc(b.name)}</td>
+              <td><span class="badge ${statusCls}">${statusTxt}</span></td>
+              <td>${canvas}${b.region ? " · " + esc(b.region) : ""}</td>
+              <td>${free}</td>
+              <td>${pose}</td>
+              <td>${b.idleSeconds.toFixed(1)}s</td>
+              <td>${b.secondsSinceSeen.toFixed(1)}s ago</td>
+              <td>${b.stagedJobId ? esc(b.stagedJobId) : "—"}</td>
+            </tr>`;
+          })
+          .join("");
+      }
+
+      // ── Queued jobs ───────────────────────────────────────────────────────────
+      function queueVisible() {
+        return (
+          document.getElementById("queueList").style.display !== "none"
+        );
+      }
+
+      /** Toggle the queued-jobs list, fetching it when opened. */
+      function toggleQueue() {
+        const el = document.getElementById("queueList");
+        const show = el.style.display === "none";
+        el.style.display = show ? "block" : "none";
+        if (show) refreshQueue();
+      }
+
+      /** @returns {Promise<void>} */
+      async function refreshQueue() {
+        const el = document.getElementById("queueList");
+        try {
+          const res = await fetch(`${host}/api/robots/jobs`, {
+            headers: authHeaders(),
+          });
+          if (!res.ok) {
+            el.innerHTML =
+              '<div class="muted">Could not load queue' +
+              (res.status === 401 ? " — unauthorized." : ".") +
+              "</div>";
+            return;
+          }
+          const data = await res.json();
+          if (!data.jobs.length) {
+            el.innerHTML =
+              '<div class="muted">Queue is empty (no jobs waiting for a bot).</div>';
+            return;
+          }
+          el.innerHTML =
+            `<table><thead><tr><th>Job id</th><th>Source</th><th>Commands</th></tr></thead><tbody>` +
+            data.jobs
+              .map(
+                (j) =>
+                  `<tr><td>${esc(j.jobId)}</td><td>${j.sourceFilename ? esc(j.sourceFilename) : "—"}</td><td>${j.commandCount}</td></tr>`,
+              )
+              .join("") +
+            `</tbody></table>`;
+        } catch (e) {
+          el.innerHTML = '<div class="muted">Network error.</div>';
+        }
+      }
+
+      /** Drop all waiting jobs (staged-on-a-bot jobs are unaffected). */
+      async function clearQueue() {
+        if (!tok()) return setLive("err", "no token");
+        if (
+          !confirm(
+            "Clear all queued drawing jobs?\n\nThis only drops jobs still waiting for a bot — jobs already staged on a robot keep their reserved canvas space.",
+          )
+        )
+          return;
+        try {
+          const res = await fetch(`${host}/api/robots/jobs`, {
+            method: "DELETE",
+            headers: authHeaders(),
+          });
+          if (!res.ok) {
+            alert("Clear failed: " + (await res.text()).slice(0, 160));
+            return;
+          }
+          const data = await res.json();
+          const el = document.getElementById("queueList");
+          el.style.display = "block";
+          el.innerHTML = `<div class="muted">Cleared ${data.cleared} queued job${data.cleared === 1 ? "" : "s"}.</div>`;
+          refreshAll();
+        } catch (e) {
+          alert("Network error: " + e);
+        }
+      }
+
+      // ── Canvas data + visualizer ──────────────────────────────────────────────
+      /** @returns {Promise<any[]>} */
+      async function refreshCanvases() {
+        try {
+          const res = await fetch(`${host}/api/robots/canvases`, {
+            headers: authHeaders(),
+          });
+          if (!res.ok) {
+            if (res.status === 401) setLive("err", "unauthorized");
+            return [];
+          }
+          const data = await res.json();
+          const canvases = data.canvases || [];
+          // map region id -> canvas id for the pool table
+          const map = {};
+          canvases.forEach((c) =>
+            (c.regions || []).forEach((r) => (map[r.id] = c.id)),
+          );
+          window._regionToCanvas = map;
+          window._canvases = canvases;
+          renderLoadSelect(canvases);
+          return canvases;
+        } catch (e) {
+          return [];
+        }
+      }
+
+      /** Canvas id whose tab is currently open in the visualizer. */
+      let activeCanvasTab = null;
+
+      /** @param {string} id */
+      function selectCanvasTab(id) {
+        activeCanvasTab = id;
+        renderCanvasVisuals(window._canvases || [], (window._lastBots || []));
+      }
+
+      /** @param {any[]} canvases @param {any[]} bots */
+      function renderCanvasVisuals(canvases, bots) {
+        bots = bots || [];
+        window._lastBots = bots; // so a tab click can re-render without a fetch
+        document.getElementById("canvasCount").textContent =
+          canvases.length + " configured";
+        const host_ = document.getElementById("canvasVisuals");
+        if (!canvases.length) {
+          activeCanvasTab = null;
+          host_.innerHTML = '<div class="muted">No canvases configured.</div>';
+          return;
+        }
+        // Keep the open tab if it still exists; otherwise fall back to the first.
+        if (!canvases.some((c) => c.id === activeCanvasTab)) {
+          activeCanvasTab = canvases[0].id;
+        }
+        const active = canvases.find((c) => c.id === activeCanvasTab);
+        const tabs =
+          canvases.length > 1
+            ? `<div class="tabs">` +
+              canvases
+                .map(
+                  (c) =>
+                    `<button class="tab${c.id === activeCanvasTab ? " active" : ""}" ` +
+                    `onclick="selectCanvasTab('${esc(c.id)}')">${esc(c.id)}</button>`,
+                )
+                .join("") +
+              `</div>`
+            : "";
+        host_.innerHTML = tabs + canvasCard(active, bots);
+      }
+
+      /** @param {any} c @param {any[]} bots @returns {string} */
+      function canvasCard(c, bots) {
+        const W = c.width,
+          H = c.height;
+        const fs = Math.max(W, H) / 48;
+        const sw = Math.max(W, H) / 500;
+        const free = c.freeFractionByRegion || {};
+        const parts = [
+          `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">`,
+          `<rect x="0" y="0" width="${W}" height="${H}" fill="#fdfdfb" stroke="#999" stroke-width="${sw}"/>`,
+        ];
+        // regions
+        (c.regions || []).forEach((r) => {
+          const f = free[r.id] == null ? 1 : free[r.id];
+          const occ = 1 - f;
+          const color = r.color || "#2d7d46";
+          parts.push(
+            `<rect x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" ` +
+              `fill="${color}" fill-opacity="${(occ * 0.6).toFixed(3)}" stroke="${color}" stroke-width="${sw}"/>`,
+          );
+          parts.push(
+            `<text x="${r.x + fs * 0.3}" y="${r.y + fs * 1.2}" font-size="${fs}" font-family="monospace" fill="#1c1c1c">${escSvg(r.id)}${r.robot ? " · " + escSvg(r.robot) : ""}</text>`,
+          );
+          parts.push(
+            `<text x="${r.x + fs * 0.3}" y="${r.y + fs * 2.4}" font-size="${fs * 0.85}" font-family="monospace" fill="#555">${Math.round(occ * 100)}% full</text>`,
+          );
+        });
+        // markers
+        (c.markers || []).forEach((m) => {
+          const mx = m.position.x,
+            my = m.position.y;
+          parts.push(
+            `<circle cx="${mx}" cy="${my}" r="${fs * 0.55}" fill="#d4a843" stroke="#111" stroke-width="${sw}"/>`,
+          );
+          parts.push(
+            `<text x="${mx + fs * 0.7}" y="${my + fs * 0.4}" font-size="${fs * 0.8}" font-family="monospace" fill="#7a5c12">${m.id}</text>`,
+          );
+        });
+        (c.drawings || []).forEach((drawing, i) => {
+
+          (drawing.strokes || []).forEach((stroke) => {
+              
+              if (stroke.length < 2) return;
+
+              const points = stroke
+                .map((p) => `${p[0]},${p[1]}`)
+                .join(" ");
+
+              parts.push(`
+                <polyline
+                  points="${points}"
+                  fill="none"
+                  stroke="#000"
+                  stroke-width="${sw * 2}"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              `);
+          });
+        });
+        // bots that live on this canvas (matched by region id)
+        const regionIds = new Set((c.regions || []).map((r) => r.id));
+        // Robot body geometry, all measured in mm from the pen (= reported pose).
+        const NOSE_AHEAD = 76; // nose is 76mm in front of the pen
+        const CAM_AHEAD = 51; // camera sits between pen and nose
+        const TAIL_BEHIND = 226 - NOSE_AHEAD; // total length 226mm → 150mm behind pen
+        const HALF_WHEEL = 149 / 2; // wheel axle spans 149mm across the pen
+        (bots || [])
+          .filter((b) => b.region && regionIds.has(b.region))
+          .forEach((b) => {
+            const color =
+              b.secondsSinceSeen > 5
+                ? "#888"
+                : b.status === "drawing"
+                  ? "#2f6fb0"
+                  : b.status === "ready"
+                    ? "#2d7d46"
+                    : "#c79a2e";
+              const rad = (b.pose.headingDegrees * Math.PI) / 180;
+              const fx = Math.cos(rad), fy = Math.sin(rad); // forward (heading) unit
+              const rx = -Math.sin(rad), ry = Math.cos(rad); // rightward unit
+              const pen = { x: b.pose.x, y: b.pose.y };
+              const along = (d) => ({ x: pen.x + fx * d, y: pen.y + fy * d });
+              const nose = along(NOSE_AHEAD);
+              const tail = along(-TAIL_BEHIND);
+              const cam = along(CAM_AHEAD);
+              const wheelL = { x: pen.x + rx * HALF_WHEEL, y: pen.y + ry * HALF_WHEEL };
+              const wheelR = { x: pen.x - rx * HALF_WHEEL, y: pen.y - ry * HALF_WHEEL };
+
+              // Spine (tail → nose) and wheel axle (across the pen) — the "t".
+              parts.push(
+                `<line x1="${tail.x}" y1="${tail.y}" x2="${nose.x}" y2="${nose.y}" stroke="${color}" stroke-width="${sw * 1.5}" stroke-linecap="round"/>`,
+              );
+              parts.push(
+                `<line x1="${wheelL.x}" y1="${wheelL.y}" x2="${wheelR.x}" y2="${wheelR.y}" stroke="${color}" stroke-width="${sw * 1.5}" stroke-linecap="round"/>`,
+              );
+
+              // Camera as a triangle pointing along the heading.
+              const TRI = 10; // mm
+              const apex = { x: cam.x + fx * TRI * 0.6, y: cam.y + fy * TRI * 0.6 };
+              const cL = { x: cam.x - fx * TRI * 0.4 + rx * TRI * 0.5, y: cam.y - fy * TRI * 0.4 + ry * TRI * 0.5 };
+              const cR = { x: cam.x - fx * TRI * 0.4 - rx * TRI * 0.5, y: cam.y - fy * TRI * 0.4 - ry * TRI * 0.5 };
+              parts.push(
+                `<polygon points="${apex.x},${apex.y} ${cL.x},${cL.y} ${cR.x},${cR.y}" fill="${color}" stroke="#fff" stroke-width="${sw * 0.5}"/>`,
+              );
+
+              // Pen location (the reported pose) as a small dot.
+              parts.push(
+                `<circle cx="${pen.x}" cy="${pen.y}" r="${sw * 2.2}" fill="#fff" stroke="${color}" stroke-width="${sw}"/>`,
+              );
+              parts.push(
+                `<text x="${pen.x + fs * 0.9}" y="${pen.y + fs * 0.4}" font-size="${fs * 0.8}" font-family="monospace" fill="#222">${escSvg(b.name)}</text>`,
+              );
+          });
+        parts.push("</svg>");
+        return `<div class="canvas-card">
+            <div class="cap"><span>${escSvg(c.id)}</span><span>${W.toFixed(0)} × ${H.toFixed(0)} mm · ${(c.regions || []).length} regions</span></div>
+            ${parts.join("")}
+          </div>`;
+      }
+
+      // ── Canvas editor ──────────────────────────────────────────────────────────
+      /** @param {any[]} canvases */
+      function renderLoadSelect(canvases) {
+        const sel = document.getElementById("loadSelect");
+        const cur = sel.value;
+        sel.innerHTML =
+          '<option value="">— select —</option>' +
+          canvases
+            .map((c) => `<option value="${esc(c.id)}">${esc(c.id)}</option>`)
+            .join("");
+        if ([...sel.options].some((o) => o.value === cur)) sel.value = cur;
+      }
+
+      /** @param {number} w @param {number} h */
+      function setSize(w, h) {
+        document.getElementById("cW").value = String(w);
+        document.getElementById("cH").value = String(h);
+      }
+
+      /** @param {{id?:number,x?:number,y?:number,sizeMm?:number}} [m] */
+      function addMarkerRow(m) {
+        m = m || {};
+        const row = document.createElement("div");
+        row.className = "row-line markers-line marker-row";
+        row.innerHTML = `
+          <div class="field"><label>id</label><input type="number" step="1" class="mk-id" value="${m.id ?? ""}"/></div>
+          <div class="field"><label>x (mm)</label><input type="number" step="any" class="mk-x" value="${m.x ?? ""}"/></div>
+          <div class="field"><label>y (mm)</label><input type="number" step="any" class="mk-y" value="${m.y ?? ""}"/></div>
+          <div class="field"><label>size (mm)</label><input type="number" step="any" class="mk-size" value="${m.sizeMm ?? ""}"/></div>
+          <button class="ghost tiny" onclick="this.parentElement.remove()">✕</button>`;
+        document.getElementById("markersList").appendChild(row);
+      }
+
+      /** @param {{id?:string,x?:number,y?:number,width?:number,height?:number,robot?:string,color?:string}} [r] */
+      function addRegionRow(r) {
+        r = r || {};
+        const row = document.createElement("div");
+        row.className = "row-line regions-line region-row";
+        row.innerHTML = `
+          <div class="field"><label>id</label><input type="text" class="rg-id" value="${r.id ?? ""}"/></div>
+          <div class="field"><label>x</label><input type="number" step="any" class="rg-x" value="${r.x ?? ""}"/></div>
+          <div class="field"><label>y</label><input type="number" step="any" class="rg-y" value="${r.y ?? ""}"/></div>
+          <div class="field"><label>w</label><input type="number" step="any" class="rg-w" value="${r.width ?? ""}"/></div>
+          <div class="field"><label>h</label><input type="number" step="any" class="rg-h" value="${r.height ?? ""}"/></div>
+          <div class="field"><label>robot</label><input type="text" class="rg-robot" value="${r.robot ?? ""}"/></div>
+          <div class="field"><label>color</label><input type="color" class="rg-color" value="${r.color ?? "#2d7d46"}"/></div>
+          <button class="ghost tiny" onclick="this.parentElement.remove()">✕</button>`;
+        // id, x, y, w, h, robot, color + remove button
+        row.style.gridTemplateColumns = "1fr 1fr 1fr 1fr 1fr 1.2fr 0.7fr auto";
+        document.getElementById("regionsList").appendChild(row);
+      }
+      /** Generate an evenly-tiled region grid over the current canvas size. */
+      function autoGridRegions() {
+        const W = num("cW"),
+          H = num("cH");
+        const rows = Math.max(1, Math.round(num("gRows")));
+        const cols = Math.max(1, Math.round(num("gCols")));
+        const prefix = document.getElementById("gPrefix").value.trim();
+        if (!W || !H) {
+          editorToast("Set width and height first", false);
+          return;
+        }
+        document.getElementById("regionsList").innerHTML = "";
+        const rw = W / cols,
+          rh = H / rows;
+        let i = 0;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            addRegionRow({
+              id: `r${r}${c}`,
+              x: +(c * rw).toFixed(2),
+              y: +(r * rh).toFixed(2),
+              width: +rw.toFixed(2),
+              height: +rh.toFixed(2),
+              robot: prefix + i,
+              color: "#2d7d46",
+            });
+            i++;
+          }
+        }
+        editorToast(`Generated ${rows * cols} regions`, true);
+      }
+
+      /**
+       * Populate the whole editor from a canvas config object. Accepts both the
+       * server shape (from GET /api/robots/canvases, no `placement`) and the
+       * exported payload shape (from buildCanvasPayload, with `placement`).
+       * Placement fields are only touched when the config carries them, so
+       * loading a server canvas leaves the current placement settings intact.
+       * @param {any} cfg
+       */
+      function applyCanvasConfig(cfg) {
+        if (cfg.id != null) document.getElementById("cId").value = cfg.id;
+        if (cfg.width != null) document.getElementById("cW").value = cfg.width;
+        if (cfg.height != null) document.getElementById("cH").value = cfg.height;
+        if (cfg.general_buffer != null)
+          document.getElementById("cBuffer").value = cfg.general_buffer;
+
+        const p = cfg.placement;
+        if (p) {
+          const set = (id, v) => {
+            if (v != null) document.getElementById(id).value = v;
+          };
+          set("pCell", p.cellMm);
+          set("pPen", p.penMm);
+          set("pClear", p.clearanceMm);
+          set("pStep", p.searchStepCells);
+          set("pAngle", p.angleStepDeg);
+          if (p.strategy != null)
+            document.getElementById("pStrategy").value = p.strategy;
+          set("pTargetFootprint", p.targetFootprintMm);
+          set("pMinScale", p.minFootprintScale);
+        }
+
+        document.getElementById("markersList").innerHTML = "";
+        (cfg.markers || []).forEach((m) =>
+          addMarkerRow({
+            id: m.id,
+            x: m.position ? m.position.x : m.x,
+            y: m.position ? m.position.y : m.y,
+            sizeMm: m.sizeMm,
+          }),
+        );
+        document.getElementById("regionsList").innerHTML = "";
+        (cfg.regions || []).forEach((r) => addRegionRow(r));
+      }
+
+      /** Populate the editor from a canvas returned by the server. */
+      // ── Editor mode (create new vs. update existing) ───────────────────────────
+      /** @type {"create"|"update"} */
+      let editorMode = "create";
+      /** Id of the canvas bound to the update form (null until one is chosen). */
+      let selectedCanvasId = null;
+      /**
+       * Server-side snapshot of the selected canvas, normalized for comparison, so
+       * the update form can highlight which fields differ from what's stored. Null
+       * outside update mode. Captured at load and re-captured after a successful
+       * update. Note: the server's canvas endpoint doesn't report placement config,
+       * so placement fields are intentionally excluded from the diff.
+       */
+      let updateBaseline = null;
+
+      /** @param {"create"|"update"} mode */
+      function setEditorMode(mode) {
+        editorMode = mode;
+        const panel = document.getElementById("editorPanel");
+        panel.dataset.mode = mode;
+        document
+          .getElementById("tabCreate")
+          .classList.toggle("active", mode === "create");
+        document
+          .getElementById("tabUpdate")
+          .classList.toggle("active", mode === "update");
+        // The id is the canvas key: free to type when creating, locked to the
+        // selected canvas when updating so an edit can't silently retarget.
+        const idInput = /** @type {HTMLInputElement} */ (
+          document.getElementById("cId")
+        );
+        idInput.readOnly = mode === "update";
+        editorToast("", true);
+        if (mode === "create") updateBaseline = null; // nothing to diff against
+        recomputeDiff();
+        if (mode === "update" && !selectedCanvasId) {
+          editorToast("Select a canvas to update above.", false);
+        }
+      }
+
+      /** Load an existing canvas into the update form and focus it in the display. */
+      function loadSelected() {
+        const id = document.getElementById("loadSelect").value;
+        if (!id) {
+          selectedCanvasId = null;
+          return;
+        }
+        const c = (window._canvases || []).find((x) => x.id === id);
+        if (!c) return;
+        applyCanvasConfig(c);
+        selectedCanvasId = c.id;
+        selectCanvasTab(c.id); // focus this canvas in the Canvases display
+        captureUpdateBaseline(c.id);
+        recomputeDiff();
+        editorToast(
+          `Editing "${c.id}"${c.placement ? "" : " (placement defaults apply)"} — changes apply on Update canvas`,
+          true,
+        );
+      }
+
+      /** Switch to update mode already bound to `id` (used after a create). */
+      function selectCanvasForUpdate(id) {
+        const c = (window._canvases || []).find((x) => x.id === id);
+        if (!c) return;
+        selectedCanvasId = id; // set before switching so the mode toast is clean
+        setEditorMode("update");
+        document.getElementById("loadSelect").value = id;
+        applyCanvasConfig(c);
+        selectCanvasTab(id);
+        captureUpdateBaseline(id);
+        recomputeDiff();
+      }
+
+      /** POST a canvas payload; returns true on success. `verb` is "Create"/"Update". */
+      async function postCanvasPayload(payload, verb) {
+        try {
+          const res = await fetch(`${host}/api/robots/canvases`, {
+            method: "POST",
+            headers: authHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const t = await res.text();
+            editorToast(`${verb} failed: ` + t.slice(0, 160), false);
+            return false;
+          }
+          const drawn = payload.drawings ? payload.drawings.length : 0;
+          editorToast(
+            `${verb}d "${payload.id}" — ${payload.regions.length} regions, ${payload.markers.length} markers, ${drawn} drawing(s)`,
+            true,
+          );
+          return true;
+        } catch (e) {
+          editorToast("Network error: " + e, false);
+          return false;
+        }
+      }
+
+      /** Create a brand-new canvas — blocked if the id already exists. */
+      async function createCanvas() {
+        if (!tok()) return editorToast("Enter admin token", false);
+        const payload = buildCanvasPayload();
+        if (!payload.id) return editorToast("Canvas id is required", false);
+        if (!payload.regions.length)
+          return editorToast("Add at least one region", false);
+        if ((window._canvases || []).some((c) => c.id === payload.id)) {
+          return editorToast(
+            `Canvas "${payload.id}" already exists — switch to "Update existing" to edit it, or choose a different id.`,
+            false,
+          );
+        }
+        payload.drawings = []; // a new canvas starts empty
+        const ok = await postCanvasPayload(payload, "Create");
+        if (!ok) return;
+        await refreshAll();
+        selectCanvasForUpdate(payload.id); // hand off to update mode on the new one
+        editorToast(
+          `Created "${payload.id}" — now editing it under "Update existing".`,
+          true,
+        );
+      }
+
+      /** Update the currently-selected canvas, preserving its placed drawings. */
+      async function updateCanvas() {
+        if (!tok()) return editorToast("Enter admin token", false);
+        if (!selectedCanvasId)
+          return editorToast(
+            "Select a canvas to update first (choose one above).",
+            false,
+          );
+        const payload = buildCanvasPayloadWithOccupancy();
+        if (!payload.id) return editorToast("Canvas id is required", false);
+        if (payload.id !== selectedCanvasId)
+          return editorToast(
+            `Editor id "${payload.id}" doesn't match the selected canvas "${selectedCanvasId}".`,
+            false,
+          );
+        if (!payload.regions.length)
+          return editorToast("Add at least one region", false);
+        const ok = await postCanvasPayload(payload, "Update");
+        if (!ok) return;
+        await refreshAll();
+        captureUpdateBaseline(selectedCanvasId); // now the server matches the form
+        recomputeDiff();
+      }
+
+      // ── Update diff (highlight fields that differ from the server) ──────────────
+      /** Expand #rgb → #rrggbb and lowercase, so color equality is representation-safe. */
+      function normHex(c) {
+        if (typeof c !== "string") return "";
+        let s = c.trim().toLowerCase();
+        if (/^#[0-9a-f]{3}$/.test(s))
+          s = "#" + s.slice(1).split("").map((ch) => ch + ch).join("");
+        return s;
+      }
+      /** Numeric equality with a small tolerance (both blank counts as equal). */
+      function numEq(a, b) {
+        const na = Number(a),
+          nb = Number(b);
+        if (isNaN(na) && isNaN(nb)) return true;
+        return Math.abs(na - nb) < 1e-6;
+      }
+
+      /** Snapshot the server's copy of canvas `id` into `updateBaseline`. */
+      function captureUpdateBaseline(id) {
+        const c = (window._canvases || []).find((x) => x.id === id);
+        if (!c) {
+          updateBaseline = null;
+          return;
+        }
+        updateBaseline = {
+          id: c.id,
+          width: Number(c.width),
+          height: Number(c.height),
+          general_buffer:
+            c.general_buffer == null ? null : Number(c.general_buffer),
+          markers: (c.markers || []).map((m) => ({
+            id: String(m.id),
+            x: Number(m.position.x),
+            y: Number(m.position.y),
+            sizeMm: m.sizeMm == null ? null : Number(m.sizeMm),
+          })),
+          regions: (c.regions || []).map((r) => ({
+            id: r.id,
+            x: Number(r.x),
+            y: Number(r.y),
+            width: Number(r.width),
+            height: Number(r.height),
+            robot: r.robot || "",
+            color: normHex(r.color || ""),
+          })),
+          // Placement now round-trips from the server (see robots.py). Older
+          // servers that don't report it leave this null and it's skipped.
+          placement: c.placement
+            ? {
+                cellMm: Number(c.placement.cellMm),
+                penMm: Number(c.placement.penMm),
+                clearanceMm: Number(c.placement.clearanceMm),
+                searchStepCells: Number(c.placement.searchStepCells),
+                angleStepDeg: Number(c.placement.angleStepDeg),
+                strategy: String(c.placement.strategy),
+                targetFootprintMm: Number(c.placement.targetFootprintMm),
+                minFootprintScale: Number(c.placement.minFootprintScale),
+              }
+            : null,
+        };
+      }
+
+      /** Drop every diff highlight in the editor. */
+      function clearDiffMarks() {
+        document
+          .querySelectorAll("#editorPanel .changed, #editorPanel .row-added")
+          .forEach((el) => el.classList.remove("changed", "row-added"));
+      }
+
+      /**
+       * Compare the update form against `updateBaseline` and mark each field that
+       * differs: changed inputs get a gold bar, whole added rows a green outline,
+       * and a summary of every change (including removed markers/regions, which have
+       * no row to highlight) is written into #diffSummary. No-op outside update mode.
+       */
+      function recomputeDiff() {
+        const summaryEl = document.getElementById("diffSummary");
+        clearDiffMarks();
+        if (editorMode !== "update" || !updateBaseline) {
+          if (summaryEl) summaryEl.textContent = "";
+          return;
+        }
+        const base = updateBaseline;
+        const changes = [];
+
+        if (!numEq(num("cW"), base.width)) {
+          document.getElementById("cW").classList.add("changed");
+          changes.push("width");
+        }
+        if (!numEq(num("cH"), base.height)) {
+          document.getElementById("cH").classList.add("changed");
+          changes.push("height");
+        }
+        if (base.general_buffer != null && !numEq(num("cBuffer"), base.general_buffer)) {
+          document.getElementById("cBuffer").classList.add("changed");
+          changes.push("general buffer");
+        }
+
+        // Placement (numeric fields + the strategy select). Skipped if the server
+        // didn't report placement (older backend).
+        if (base.placement) {
+          const numFields = [
+            ["pCell", "cellMm", "cell"],
+            ["pPen", "penMm", "pen"],
+            ["pClear", "clearanceMm", "clearance"],
+            ["pStep", "searchStepCells", "search step"],
+            ["pAngle", "angleStepDeg", "angle step"],
+            ["pTargetFootprint", "targetFootprintMm", "target footprint"],
+            ["pMinScale", "minFootprintScale", "min scale"],
+          ];
+          numFields.forEach(([id, key, label]) => {
+            if (!numEq(num(id), base.placement[key])) {
+              document.getElementById(id).classList.add("changed");
+              changes.push(label);
+            }
+          });
+          const stratEl = document.getElementById("pStrategy");
+          if (stratEl.value !== base.placement.strategy) {
+            stratEl.classList.add("changed");
+            changes.push("strategy");
+          }
+        }
+
+        // Markers, matched by id.
+        const baseMk = new Map(base.markers.map((m) => [m.id, m]));
+        const seenMk = new Set();
+        document.querySelectorAll("#markersList .marker-row").forEach((row) => {
+          const id = row.querySelector(".mk-id").value.trim();
+          seenMk.add(id);
+          const bm = baseMk.get(id);
+          if (!bm) {
+            row.classList.add("row-added");
+            changes.push(`marker "${id || "?"}" added`);
+            return;
+          }
+          let dirty = false;
+          const cmpN = (sel, baseVal) => {
+            const el = row.querySelector(sel);
+            if (!numEq(parseFloat(el.value), baseVal)) {
+              el.classList.add("changed");
+              dirty = true;
+            }
+          };
+          cmpN(".mk-x", bm.x);
+          cmpN(".mk-y", bm.y);
+          const sizeEl = row.querySelector(".mk-size");
+          const size = sizeEl.value.trim() === "" ? null : parseFloat(sizeEl.value);
+          const sizeSame =
+            (size == null && bm.sizeMm == null) ||
+            (size != null && bm.sizeMm != null && numEq(size, bm.sizeMm));
+          if (!sizeSame) {
+            sizeEl.classList.add("changed");
+            dirty = true;
+          }
+          if (dirty) changes.push(`marker "${id}" edited`);
+        });
+        base.markers.forEach((m) => {
+          if (!seenMk.has(m.id)) changes.push(`marker "${m.id}" removed`);
+        });
+
+        // Regions, matched by id.
+        const baseRg = new Map(base.regions.map((r) => [r.id, r]));
+        const seenRg = new Set();
+        document.querySelectorAll("#regionsList .region-row").forEach((row) => {
+          const id = row.querySelector(".rg-id").value.trim();
+          seenRg.add(id);
+          const br = baseRg.get(id);
+          if (!br) {
+            row.classList.add("row-added");
+            changes.push(`region "${id || "?"}" added`);
+            return;
+          }
+          let dirty = false;
+          const cmpN = (sel, baseVal) => {
+            const el = row.querySelector(sel);
+            if (!numEq(parseFloat(el.value), baseVal)) {
+              el.classList.add("changed");
+              dirty = true;
+            }
+          };
+          cmpN(".rg-x", br.x);
+          cmpN(".rg-y", br.y);
+          cmpN(".rg-w", br.width);
+          cmpN(".rg-h", br.height);
+          const robotEl = row.querySelector(".rg-robot");
+          if ((robotEl.value.trim() || "") !== br.robot) {
+            robotEl.classList.add("changed");
+            dirty = true;
+          }
+          const colorEl = row.querySelector(".rg-color");
+          if (normHex(colorEl.value) !== br.color) {
+            colorEl.classList.add("changed");
+            dirty = true;
+          }
+          if (dirty) changes.push(`region "${id}" edited`);
+        });
+        base.regions.forEach((r) => {
+          if (!seenRg.has(r.id)) changes.push(`region "${r.id}" removed`);
+        });
+
+        if (summaryEl) {
+          if (!changes.length) {
+            summaryEl.className = "diff-summary only-update none";
+            summaryEl.textContent = "No changes vs. server.";
+          } else {
+            summaryEl.className = "diff-summary only-update has";
+            summaryEl.innerHTML =
+              `<strong>${changes.length} change${changes.length === 1 ? "" : "s"} pending:</strong> ` +
+              changes.map(esc).join(", ") +
+              ".";
+          }
+        }
+      }
+
+      /** Download the current editor state as a complete JSON config file. */
+      function exportConfig() {
+        const payload = buildCanvasPayload();
+        if (!payload.id) return editorToast("Canvas id is required", false);
+        const blob = new Blob([JSON.stringify(payload, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${payload.id}.canvas.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        editorToast(`Exported "${payload.id}"`, true);
+      }
+
+      function exportConfigWithOccupancy() {
+        const payload = buildCanvasPayloadWithOccupancy();
+        if (!payload.id) return editorToast("Canvas id is required", false);
+        const blob = new Blob([JSON.stringify(payload, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${payload.id}.canvas.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        editorToast(`Exported "${payload.id}"`, true);
+      }
+
+      /**
+       * Load a complete config from a chosen JSON file into the editor. Does not
+       * save — the user reviews the populated fields, then Create/Update canvas.
+       * The editor is switched into the correct mode based on whether the file's
+       * id already exists on the server (update it) or not (create it).
+       * @param {HTMLInputElement} input
+       */
+      function importConfig(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const cfg = JSON.parse(/** @type {string} */ (reader.result));
+            applyCanvasConfig(cfg);
+            const exists = (window._canvases || []).some((c) => c.id === cfg.id);
+            if (exists) {
+              selectedCanvasId = cfg.id;
+              setEditorMode("update");
+              document.getElementById("loadSelect").value = cfg.id;
+              selectCanvasTab(cfg.id);
+              captureUpdateBaseline(cfg.id); // baseline = server; diff shows the import
+              recomputeDiff();
+              editorToast(
+                `Imported "${cfg.id}" over the existing canvas — review the highlighted changes, then Update canvas`,
+                true,
+              );
+            } else {
+              selectedCanvasId = null;
+              setEditorMode("create");
+              editorToast(
+                `Imported "${cfg.id || file.name}" as a new canvas — review, then Create canvas`,
+                true,
+              );
+            }
+          } catch (e) {
+            editorToast("Import failed: " + e.message, false);
+          }
+        };
+        reader.onerror = () => editorToast("Could not read file", false);
+        reader.readAsText(file);
+        input.value = ""; // let the same file be re-imported later
+      }
+
+      function importConfigWithOccupancy(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const cfg = JSON.parse(/** @type {string} */ (reader.result));
+            const drawings = cfg.drawings;
+            applyCanvasConfig(cfg);
+            saveCanvas();
+            saveCanvasWithDrawings(cfg.drawings);
+          } catch (e) {
+            editorToast("Import failed: " + e.message, false);
+          }
+        };
+        reader.onerror = () => editorToast("Could not read file", false);
+        reader.readAsText(file);
+        input.value = ""; // let the same file be re-imported later
+      }
+
+
+      /** @returns {object} CanvasConfig payload for POST /api/robots/canvases */
+      function buildCanvasPayload() {
+        const markers = [...document.querySelectorAll(".marker-row")]
+          .map((row) => {
+            const id = parseInt(row.querySelector(".mk-id").value, 10);
+            const x = parseFloat(row.querySelector(".mk-x").value);
+            const y = parseFloat(row.querySelector(".mk-y").value);
+            const size = parseFloat(row.querySelector(".mk-size").value);
+            if (isNaN(id) || isNaN(x) || isNaN(y)) return null;
+            const m = { id, position: { x, y } };
+            if (!isNaN(size)) m.sizeMm = size;
+            return m;
+          })
+          .filter(Boolean);
+
+        const regions = [...document.querySelectorAll(".region-row")]
+          .map((row) => {
+            const id = row.querySelector(".rg-id").value.trim();
+            const x = parseFloat(row.querySelector(".rg-x").value);
+            const y = parseFloat(row.querySelector(".rg-y").value);
+            const width = parseFloat(row.querySelector(".rg-w").value);
+            const height = parseFloat(row.querySelector(".rg-h").value);
+            const robot = row.querySelector(".rg-robot").value.trim();
+            const color = row.querySelector(".rg-color").value;
+            if (!id || isNaN(x) || isNaN(y) || isNaN(width) || isNaN(height))
+              return null;
+            return { id, x, y, width, height, robot: robot || null, color };
+          })
+          .filter(Boolean);
+
+        return {
+          id: document.getElementById("cId").value.trim(),
+          width: num("cW"),
+          height: num("cH"),
+          general_buffer: num("cBuffer"),
+          markers,
+          regions,
+          placement: {
+            cellMm: num("pCell"),
+            penMm: num("pPen"),
+            clearanceMm: num("pClear"),
+            searchStepCells: Math.round(num("pStep")),
+            angleStepDeg: num("pAngle"),
+            strategy: document.getElementById("pStrategy").value,
+            targetFootprintMm: num("pTargetFootprint"),
+            minFootprintScale: num("pMinScale"),
+          },
+        };
+      }
+
+      /** @returns {object} CanvasConfig payload for POST /api/robots/canvases */
+      function buildCanvasPayloadWithOccupancy() {
+        const markers = [...document.querySelectorAll(".marker-row")]
+          .map((row) => {
+            const id = parseInt(row.querySelector(".mk-id").value, 10);
+            const x = parseFloat(row.querySelector(".mk-x").value);
+            const y = parseFloat(row.querySelector(".mk-y").value);
+            const size = parseFloat(row.querySelector(".mk-size").value);
+            if (isNaN(id) || isNaN(x) || isNaN(y)) return null;
+            const m = { id, position: { x, y } };
+            if (!isNaN(size)) m.sizeMm = size;
+            return m;
+          })
+          .filter(Boolean);
+
+        const regions = [...document.querySelectorAll(".region-row")]
+          .map((row) => {
+            const id = row.querySelector(".rg-id").value.trim();
+            const x = parseFloat(row.querySelector(".rg-x").value);
+            const y = parseFloat(row.querySelector(".rg-y").value);
+            const width = parseFloat(row.querySelector(".rg-w").value);
+            const height = parseFloat(row.querySelector(".rg-h").value);
+            const robot = row.querySelector(".rg-robot").value.trim();
+            const color = row.querySelector(".rg-color").value;
+            if (!id || isNaN(x) || isNaN(y) || isNaN(width) || isNaN(height))
+              return null;
+            return { id, x, y, width, height, robot: robot || null, color };
+          })
+          .filter(Boolean);
+
+        const id = document.getElementById("cId").value.trim()
+        const existingCanvas = (window._canvases || []).find((c) => c.id === id);
+
+        return {
+          id: id,
+          width: num("cW"),
+          height: num("cH"),
+          general_buffer: num("cBuffer"),
+          markers,
+          regions,
+          placement: {
+            cellMm: num("pCell"),
+            penMm: num("pPen"),
+            clearanceMm: num("pClear"),
+            searchStepCells: Math.round(num("pStep")),
+            angleStepDeg: num("pAngle"),
+            strategy: document.getElementById("pStrategy").value,
+            targetFootprintMm: num("pTargetFootprint"),
+            minFootprintScale: num("pMinScale"),
+          },
+          drawings: structuredClone(existingCanvas?.drawings ?? []),
+        };
+      }
+
+      /** @returns {Promise<void>} */
+      async function saveCanvas() {
+        if (!tok()) return editorToast("Enter admin token", false);
+        const payload = buildCanvasPayload();
+        if (!payload.id) return editorToast("Canvas id is required", false);
+        if (!payload.regions.length)
+          return editorToast("Add at least one region", false);
+        try {
+          const res = await fetch(`${host}/api/robots/canvases`, {
+            method: "POST",
+            headers: authHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const t = await res.text();
+            return editorToast("Save failed: " + t.slice(0, 160), false);
+          }
+          editorToast(
+            `Saved "${payload.id}" — ${payload.regions.length} regions, ${payload.markers.length} markers`,
+            true,
+          );
+          refreshAll();
+        } catch (e) {
+          editorToast("Network error: " + e, false);
+        }
+      }
+
+      /** @returns {Promise<void>} */
+      async function saveCanvasWithDrawings(drawings) {
+        if (!tok()) return editorToast("Enter admin token", false);
+        const payload = buildCanvasPayload();
+        if (!payload.id) return editorToast("Canvas id is required", false);
+        payload.drawings = drawings;
+        if (!payload.regions.length)
+          return editorToast("Add at least one region", false);
+        try {
+          const res = await fetch(`${host}/api/robots/canvases`, {
+            method: "POST",
+            headers: authHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) {
+            const t = await res.text();
+            return editorToast("Save failed: " + t.slice(0, 160), false);
+          }
+          editorToast(
+            `Saved "${payload.id}" — ${payload.regions.length} regions, ${payload.markers.length} markers`,
+            true,
+          );
+          refreshAll();
+        } catch (e) {
+          editorToast("Network error: " + e, false);
+        }
+      }
+      
+
+      async function deleteCanvas() {
+        if (!tok()) return editorToast("Enter admin token", false);
+
+        const id = document.getElementById("cId").value.trim();
+        if (!id) return editorToast("Canvas id is required", false);
+
+        if (!confirm(`Delete canvas "${id}"? This cannot be undone.`)) return;
+
+        try {
+          const res = await fetch(`${host}/api/robots/canvases/${encodeURIComponent(id)}`, {
+            method: "DELETE",
+            headers: authHeaders(),
+          });
+          if (!res.ok) {
+            const t = await res.text();
+            return editorToast("Delete failed: " + t.slice(0, 160), false);
+          }
+          editorToast(`Deleted canvas "${id}"`, true);
+          if (id === selectedCanvasId) selectedCanvasId = null;
+          refreshAll();
+        } catch (e) {
+          editorToast("Network error: " + e, false);
+        }
+      }
+
+      async function clearDrawings() {
+        if (!tok()) return editorToast("Enter admin token", false);
+
+        const id = document.getElementById("cId").value.trim();
+        if (!id) return editorToast("Canvas id is required", false);
+
+        if (!confirm(`Clear all drawings from "${id}"?`)) return;
+
+        try {
+          const res = await fetch(`${host}/api/robots/canvases/${encodeURIComponent(id)}/drawings`, {
+            method: "DELETE",
+            headers: authHeaders(),
+          });
+          if (!res.ok) {
+            const t = await res.text();
+            return editorToast("Clear failed: " + t.slice(0, 160), false);
+          }
+          const { cleared } = await res.json();
+          editorToast(`Cleared ${cleared} drawing(s) from "${id}"`, true);
+          refreshAll();
+        } catch (e) {
+          editorToast("Network error: " + e, false);
+        }
+      }
+
+      // ── Test drawing ──────────────────────────────────────────────────────────
+      /** @param {"square"|"triangle"|"wave"} shape @returns {Promise<void>} */
+      async function enqueueTest(shape) {
+        if (!tok()) return testToast("Enter admin token", false);
+        const s = num("testSize") || 120;
+        const commands = buildTestCommands(shape, s);
+        try {
+          const res = await fetch(`${host}/api/robots/jobs`, {
+            method: "POST",
+            headers: authHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({
+              commands,
+              sourceFilename: `test_${shape}`,
+            }),
+          });
+          if (!res.ok) {
+            const t = await res.text();
+            return testToast("Enqueue failed: " + t.slice(0, 160), false);
+          }
+          const job = await res.json();
+          testToast(`Queued ${shape} — job ${job.jobId || "?"}`, true);
+          refreshPool();
+        } catch (e) {
+          testToast("Network error: " + e, false);
+        }
+      }
+
+      /** @param {string} shape @param {number} s @returns {object[]} */
+      function buildTestCommands(shape, s) {
+        const line = (d, p) => ({ kind: "line", distance: d, penDown: p });
+        const spin = (d) => ({ kind: "spin", degrees: d });
+        const arc = (r, d) => ({ kind: "arc", radius: r, degrees: d });
+        const lead = line(s * 0.3, false); // pen-up lead-in
+        if (shape === "square") {
+          return [
+            lead,
+            line(s, true),
+            spin(90),
+            line(s, true),
+            spin(90),
+            line(s, true),
+            spin(90),
+            line(s, true),
+          ];
+        }
+        if (shape === "triangle") {
+          return [
+            lead,
+            line(s, true),
+            spin(120),
+            line(s, true),
+            spin(120),
+            line(s, true),
+          ];
+        }
+        // wave: a row of alternating arcs
+        const r = s / 4;
+        return [
+          lead,
+          arc(r, 180),
+          arc(r, -180),
+          arc(r, 180),
+          arc(r, -180),
+        ];
+      }
+
+      // ── Virtual robots ────────────────────────────────────────────────────────
+      //
+      // A virtual robot is a browser-side simulation of a real Doodlebot: it runs
+      // the same Locate → Poll → Draw loop against the live server so you can
+      // exercise the whole coordinator (placement, occupancy, exit poses, the
+      // gallery/display views) without any physical hardware. Each one owns a
+      // ~1s check-in timer and a tiny state machine:
+      //
+      //   locating ──(after `locate` s)──▶ ready ──(server says "draw")──▶ drawing
+      //        ▲                                                             │
+      //        └──────────────────(after the draw completes)────────────────┘
+      //
+      // Check-in needs no admin token — it's the robot wire protocol, open to bots.
+      /** @type {Map<string, any>} */
+      const virtualBots = new Map();
+
+      /** Find the {canvas, region} a robot name is assigned to, or null. */
+      function regionForRobotName(name) {
+        for (const c of window._canvases || []) {
+          for (const r of c.regions || []) {
+            if (r.robot === name) return { canvas: c, region: r };
+          }
+        }
+        return null;
+      }
+
+      /** Center pose of a region rect (mm), used as the bot's resting pose. */
+      function regionCenterPose(r) {
+        return {
+          x: r.x + r.width / 2,
+          y: r.y + r.height / 2,
+          headingDegrees: 0,
+        };
+      }
+
+      /** Spawn (or restart) a virtual robot with the given name. */
+      function spawnVirtual(name) {
+        name = (name || "").trim();
+        if (!name) return virtualToast("Enter a robot name", false);
+        if (virtualBots.has(name)) {
+          virtualToast(`"${name}" is already running`, false);
+          return;
+        }
+        const assignment = regionForRobotName(name);
+        const pose = assignment
+          ? regionCenterPose(assignment.region)
+          : { x: 0, y: 0, headingDegrees: 0 };
+        const locateS = Math.max(0, num("vLocate") || 0);
+        const drawS = Math.max(0, num("vDraw") || 0); // 0 → auto from command count
+
+        const vr = {
+          name,
+          status: "locating",
+          pose,
+          restPose: pose,
+          checkins: 0,
+          lastReply: "—",
+          currentJob: null,
+          completed: 0,
+          locateMs: locateS * 1000,
+          drawOverrideMs: drawS * 1000,
+          spawnedAt: Date.now(),
+          drawStartedAt: 0,
+          drawMs: 0,
+          exitPose: null,
+          busy: false, // guards against overlapping check-ins
+          timer: 0,
+        };
+        virtualBots.set(name, vr);
+        // First tick immediately, then once a second — matches the real bot cadence.
+        vrTick(vr);
+        vr.timer = setInterval(() => vrTick(vr), 1000);
+        renderVirtualRobots();
+        if (!assignment) {
+          virtualToast(
+            `Spawned "${name}" — but no region is assigned to it, so it will only ever get "wait". Assign it a region below.`,
+            false,
+          );
+        } else {
+          virtualToast(
+            `Spawned "${name}" on ${assignment.canvas.id} · ${assignment.region.id}`,
+            true,
+          );
+        }
+      }
+
+      function spawnVirtualFromInput() {
+        spawnVirtual(document.getElementById("vName").value);
+      }
+
+      /** Spawn a virtual robot for every region that names a robot (idempotent). */
+      function spawnAllAssigned() {
+        const names = new Set();
+        for (const c of window._canvases || [])
+          for (const r of c.regions || []) if (r.robot) names.add(r.robot);
+        if (!names.size)
+          return virtualToast(
+            "No regions have a robot assigned — set one in the canvas config.",
+            false,
+          );
+        let spawned = 0;
+        names.forEach((n) => {
+          if (!virtualBots.has(n)) {
+            spawnVirtual(n);
+            spawned++;
+          }
+        });
+        virtualToast(
+          spawned
+            ? `Spawned ${spawned} robot${spawned === 1 ? "" : "s"}`
+            : "All assigned robots already running",
+          true,
+        );
+      }
+
+      /** Stop + forget one virtual robot (its server record just goes stale). */
+      function stopVirtual(name) {
+        const vr = virtualBots.get(name);
+        if (!vr) return;
+        clearInterval(vr.timer);
+        virtualBots.delete(name);
+        renderVirtualRobots();
+      }
+
+      function stopAllVirtual() {
+        [...virtualBots.keys()].forEach(stopVirtual);
+        virtualToast("Stopped all virtual robots", true);
+      }
+
+      /** One beat of a virtual robot: advance its state machine, then check in. */
+      async function vrTick(vr) {
+        if (vr.busy) return; // a slow request is still in flight; skip this beat
+        const now = Date.now();
+
+        // ── advance the state machine before reporting status ──
+        if (vr.status === "locating" && now - vr.spawnedAt >= vr.locateMs) {
+          vr.status = "ready";
+          vr.pose = vr.restPose;
+        } else if (
+          vr.status === "drawing" &&
+          now - vr.drawStartedAt >= vr.drawMs
+        ) {
+          // Finished the drawing: drive to the exit pose and re-join the pool.
+          if (vr.exitPose) vr.pose = vr.exitPose;
+          vr.status = "ready";
+          vr.completed++;
+          vr.currentJob = null;
+          vr.exitPose = null;
+        }
+
+        // ── report to the server and act on its reply ──
+        vr.busy = true;
+        try {
+          const res = await fetch(`${host}/api/robots/checkin`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: vr.name,
+              status: vr.status,
+              pose: vr.pose,
+            }),
+          });
+          if (!res.ok) {
+            vr.lastReply = "HTTP " + res.status;
+            return;
+          }
+          const data = await res.json();
+          vr.checkins++;
+          vr.lastReply = data.action;
+
+          if (data.action === "draw" && vr.status === "ready") {
+            // Took a job — navigate to the start point and begin "drawing".
+            vr.currentJob = data.jobId;
+            vr.pose = {
+              x: data.navigateTo.x,
+              y: data.navigateTo.y,
+              headingDegrees: data.navigateTo.headingDegrees,
+            };
+            vr.exitPose = data.exitPose || null;
+            vr.status = "drawing";
+            vr.drawStartedAt = Date.now();
+            // Auto-time the draw from the command count (≈150ms each, capped),
+            // unless the user pinned a fixed duration.
+            vr.drawMs =
+              vr.drawOverrideMs ||
+              Math.min(10000, 1200 + (data.commands || []).length * 150);
+          }
+        } catch (e) {
+          vr.lastReply = "offline";
+        } finally {
+          vr.busy = false;
+          renderVirtualRobots();
+        }
+      }
+
+      const VSTATE_CLS = {
+        locating: "s-locating",
+        ready: "s-ready",
+        drawing: "s-drawing",
+      };
+
+      function renderVirtualRobots() {
+        const bots = [...virtualBots.values()];
+        document.getElementById("virtualCount").textContent = bots.length
+          ? bots.length + " running"
+          : "";
+        const body = document.getElementById("virtualBody");
+        if (!bots.length) {
+          body.innerHTML =
+            '<tr><td colspan="9" class="muted">No virtual robots — spawn one above.</td></tr>';
+          return;
+        }
+        body.innerHTML = bots
+          .map((vr) => {
+            const a = regionForRobotName(vr.name);
+            const where = a ? `${a.canvas.id} · ${esc(a.region.id)}` : "unassigned";
+            const pose = `${vr.pose.x.toFixed(0)}, ${vr.pose.y.toFixed(0)}, ${vr.pose.headingDegrees.toFixed(0)}°`;
+            return `<tr>
+              <td>${esc(vr.name)}</td>
+              <td><span class="badge ${VSTATE_CLS[vr.status] || "s-stale"}">${vr.status}</span></td>
+              <td>${where}</td>
+              <td>${pose}</td>
+              <td>${vr.checkins}</td>
+              <td>${esc(vr.lastReply)}</td>
+              <td>${vr.currentJob ? esc(vr.currentJob) : "—"}</td>
+              <td>${vr.completed}</td>
+              <td><button class="ghost tiny" onclick="stopVirtual('${esc(vr.name)}')">Stop</button></td>
+            </tr>`;
+          })
+          .join("");
+      }
+
+      function virtualToast(msg, ok) {
+        const el = document.getElementById("virtualToast");
+        el.className = "toast " + (ok ? "ok" : "err");
+        el.textContent = msg;
+      }
+
+      // ── Helpers ──────────────────────────────────────────────────────────────
+      function num(id) {
+        return parseFloat(
+          /** @type {HTMLInputElement} */ (document.getElementById(id)).value,
+        );
+      }
+      function esc(s) {
+        return String(s).replace(
+          /[&<>"]/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+        );
+      }
+      function escSvg(s) {
+        return esc(s);
+      }
+      function editorToast(msg, ok) {
+        const el = document.getElementById("editorToast");
+        el.className = "toast " + (ok ? "ok" : "err");
+        el.textContent = msg;
+      }
+      function testToast(msg, ok) {
+        const el = document.getElementById("testToast");
+        el.className = "toast " + (ok ? "ok" : "err");
+        el.textContent = msg;
+      }
+
+      // ── Refresh orchestration ──────────────────────────────────────────────────
+      /** @returns {Promise<void>} */
+      async function refreshAll() {
+        if (!tok()) {
+          setLive("idle", "no token");
+          return;
+        }
+        const [canvases, pool] = await Promise.all([
+          refreshCanvases(),
+          refreshPool(),
+        ]);
+        renderCanvasVisuals(canvases || [], (pool && pool.bots) || []);
+        if (queueVisible()) refreshQueue();
+      }
+
+      setInterval(() => {
+        if (
+          /** @type {HTMLInputElement} */ (
+            document.getElementById("autoRefresh")
+          ).checked
+        )
+          refreshAll();
+      }, 2000);
+
+      // seed the editor with a sensible starting layout
+      addMarkerRow({ id: 0, x: 460, y: 0, sizeMm: 80 });
+      // addMarkerRow({ id: 1, x: 1219.2, y: 0, sizeMm: 100 });
+      // addMarkerRow({ id: 2, x: 1219.2, y: 2438.4, sizeMm: 100 });
+      // addMarkerRow({ id: 3, x: 0, y: 2438.4, sizeMm: 100 });
+      addRegionRow({ id: "r00", x: 180, y: 180, width: 555, height: 170, robot: "bot-0", color: "#2d7d46" });
+
+      // Live diff: re-highlight on every edit (typing/selects) and whenever marker
+      // or region rows are added/removed. No-op unless we're in update mode.
+      const _editorPanel = document.getElementById("editorPanel");
+      _editorPanel.addEventListener("input", recomputeDiff);
+      _editorPanel.addEventListener("change", recomputeDiff);
+      const _diffObserver = new MutationObserver(() => recomputeDiff());
+      _diffObserver.observe(document.getElementById("markersList"), {
+        childList: true,
+      });
+      _diffObserver.observe(document.getElementById("regionsList"), {
+        childList: true,
+      });
+
+      setEditorMode("create"); // start in create mode
+      refreshAll();
+    </script>
+  </body>
+</html>
