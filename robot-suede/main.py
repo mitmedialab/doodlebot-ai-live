@@ -46,9 +46,10 @@ def send(msg):
 
 
 WEBSOCKET_PORT = 8765
+SPEAKER_PORT = 8877
 
 
-def display(cmd):
+def websocket_cmd(cmd):
 
     print(hostname)
     uri = f"ws://localhost:8765"
@@ -56,6 +57,25 @@ def display(cmd):
     with connect(uri) as ws:
         ws.send(cmd)
         return ws.recv()
+
+
+ANIM = {
+    "angry": "a",
+    "annoyed": "y",
+    "confused": "m",
+    "disgust": "d",
+    "engaged": "e",
+    "fear": "f",
+    "happy": "h",
+    "love": "o",
+    "neutral": "n",
+    "sad": "s",
+    "sleeping": "l",
+    "surprise": "p",
+    "wink": "i",
+    "worried": "r",
+    "wrong": "w",
+}
 
 
 # --------------------------------------------------------------------------- #
@@ -436,6 +456,7 @@ class ServerClient:
 #     return estimate_pose()
 
 POSE_WINDOW = 7
+IDLE_SLEEP_SECONDS = 3
 
 recent_poses = deque(maxlen=POSE_WINDOW)
 
@@ -468,11 +489,12 @@ def poses_consistent(poses, position_tolerance=50, angle_tolerance=5):
 def run(client: ServerClient) -> None:
     """Run the Locate → Poll → Draw loop forever."""
 
-    alternate = True
+    current_face = "happy"  # matches the display("(d,h)") at startup
     while True:
         # --- Locate ---------------------------------------------------------
         pose = None
         job: Optional[DrawJob] = None
+        idle_since: Optional[float] = None  # when we located with no job to draw
 
         while pose is None or job is None:
 
@@ -502,21 +524,34 @@ def run(client: ServerClient) -> None:
                     recent_poses.clear()  # optional
             else:
                 recent_poses.clear()
+                idle_since = None
+                # SOCIAL: the robot doesn't know where it is -- confused
+                if current_face != "confused":
+                    websocket_cmd(f"(d,{ANIM['confused']})")  # dizzy while spinning
+                    current_face = "confused"
                 execute_commands([SpinCommand(degrees=10)])
-                if alternate:
-                    print("anger")
-                    # display("(d,a)")
-                    alternate = False
-                else:
-                    print("love")
-                    # display("(d,O)")
-                    alternate = True
 
             # Poll for a job if we have a pose
             if pose is not None:
                 new_job = client.check_in("ready", pose)
                 if new_job is not None:
                     job = new_job
+                    idle_since = None
+                    if current_face != "happy":
+                        websocket_cmd(f"(d,{ANIM['happy']})")  # got work, wake up
+                        current_face = "happy"
+                else:
+                    # SOCIAL: If the robot has been idle for more than 3 seconds, switch to sleep
+                    if idle_since is None:
+                        idle_since = time.monotonic()
+                    if time.monotonic() - idle_since > IDLE_SLEEP_SECONDS:
+                        if current_face != "sleeping":
+                            websocket_cmd(f"(d,{ANIM['sleeping']})")
+                            current_face = "sleeping"
+                    # SOCIAL: If < 3 seconds, the robot has found its place -- it's happy
+                    elif current_face != "happy":
+                        websocket_cmd(f"(d,{ANIM['happy']})")  # found the marker
+                        current_face = "happy"
 
             if pose is None:
                 if len(recent_poses) < POSE_WINDOW:
@@ -540,6 +575,11 @@ def run(client: ServerClient) -> None:
                 job.navigateFrom
             )
 
+        # SOCIAL: celebrate finishing the drawing with a spin (pen up so it doesn't mark)
+        websocket_cmd(f"(d,{ANIM['happy']})") 
+        send_command("u,0")
+        execute_commands([SpinCommand(degrees=360)])
+
 
 if __name__ == "__main__":
 
@@ -562,5 +602,5 @@ if __name__ == "__main__":
     marker_map = client.fetch_markers()
 
     setup_aruco_client(hostname, marker_map)
-    display("(d,h)")
+    websocket_cmd("(d,h)")
     run(client)
