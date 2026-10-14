@@ -78,7 +78,7 @@ def send_audio_data(wav_bytes: bytes, chunk_size: int = SPEAK_CHUNK_SIZE) -> flo
         rate = wav.getframerate()
         duration = wav.getnframes() / rate
 
-    uri = f"ws://localhost:{SPEAKER_PORT}"
+    uri = f"ws://profiterole.direct.mitlivinglab.org:{SPEAKER_PORT}"
     with connect(uri) as ws:
         ws.send(f"(1,{sample_width},{channels},{rate})")
         for i in range(0, len(wav_bytes), chunk_size):
