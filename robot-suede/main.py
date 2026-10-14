@@ -576,7 +576,6 @@ def run(client: ServerClient) -> None:
                     websocket_cmd(f"(d,{ANIM['confused']})")  # dizzy while spinning
                     current_face = "confused"
                 execute_commands([SpinCommand(degrees=10)])
-                speak("Hello!")
 
             # Poll for a job if we have a pose
             if pose is not None:
