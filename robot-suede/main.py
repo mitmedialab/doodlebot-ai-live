@@ -88,7 +88,9 @@ def send_audio_data(wav_bytes: bytes, chunk_size: int = SPEAK_CHUNK_SIZE) -> flo
     return duration
 
 
-def speak(text: str, voice_id: str = "default", pitch: float = 0, wait: bool = True) -> None:
+def speak(
+    text: str, voice_id: str = "default", pitch: float = 0, wait: bool = True
+) -> None:
     """Synthesize ``text`` on the server and play it through the robot speaker.
 
     Blocks for the length of the clip when ``wait`` is True.
@@ -366,7 +368,6 @@ def send_command(cmd: str) -> None:
 CM_TO_STEPS = 7.16 * 16
 
 
-
 def execute_commands(commands: list[DrawingCommand]) -> None:
     """Issue line/spin/arc commands to the drive + pen, in order."""
     currentPen = 1
@@ -577,6 +578,7 @@ def run(client: ServerClient) -> None:
                     websocket_cmd(f"(d,{ANIM['confused']})")  # dizzy while spinning
                     current_face = "confused"
                 execute_commands([SpinCommand(degrees=10)])
+                speak("Hello!")
 
             # Poll for a job if we have a pose
             if pose is not None:
@@ -619,11 +621,11 @@ def run(client: ServerClient) -> None:
                     y=job.exitPose["y"],
                     headingDegrees=job.exitPose["headingDegrees"],
                 ),
-                job.navigateFrom
+                job.navigateFrom,
             )
 
         # SOCIAL: celebrate finishing the drawing with a spin (pen up so it doesn't mark)
-        websocket_cmd(f"(d,{ANIM['happy']})") 
+        websocket_cmd(f"(d,{ANIM['happy']})")
         send_command("u,0")
         execute_commands([SpinCommand(degrees=360)])
 
