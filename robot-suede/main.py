@@ -13,7 +13,11 @@ machine from the repo README:
 
 from __future__ import annotations
 
+import base64
+import io
+import json
 import time
+import wave
 from dataclasses import dataclass, field
 from typing import Literal, Optional, Union
 import socket
@@ -57,6 +61,49 @@ def websocket_cmd(cmd):
     with connect(uri) as ws:
         ws.send(cmd)
         return ws.recv()
+
+
+SPEAK_URL = "https://doodlebot.media.mit.edu/speak"
+SPEAK_CHUNK_SIZE = 1024
+
+
+def send_audio_data(wav_bytes: bytes, chunk_size: int = SPEAK_CHUNK_SIZE) -> float:
+    """Stream WAV audio to the robot speaker websocket.
+
+    Returns the clip duration in seconds.
+    """
+    with wave.open(io.BytesIO(wav_bytes)) as wav:
+        sample_width = wav.getsampwidth()
+        channels = wav.getnchannels()
+        rate = wav.getframerate()
+        duration = wav.getnframes() / rate
+
+    uri = f"ws://localhost:{SPEAKER_PORT}"
+    with connect(uri) as ws:
+        ws.send(f"(1,{sample_width},{channels},{rate})")
+        for i in range(0, len(wav_bytes), chunk_size):
+            chunk = wav_bytes[i : i + chunk_size]
+            ws.send(json.dumps({"audio_data": base64.b64encode(chunk).decode()}))
+
+    return duration
+
+
+def speak(text: str, voice_id: str = "default", pitch: float = 0, wait: bool = True) -> None:
+    """Synthesize ``text`` on the server and play it through the robot speaker.
+
+    Blocks for the length of the clip when ``wait`` is True.
+    """
+    resp = requests.post(
+        SPEAK_URL,
+        params={"voice": voice_id, "pitch": pitch},
+        json={"text": text},
+        timeout=30,
+    )
+    resp.raise_for_status()
+
+    duration = send_audio_data(resp.content)
+    if wait:
+        time.sleep(duration)
 
 
 ANIM = {
