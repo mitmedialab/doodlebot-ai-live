@@ -88,9 +88,7 @@ def send_audio_data(wav_bytes: bytes, chunk_size: int = SPEAK_CHUNK_SIZE) -> flo
     return duration
 
 
-def speak(
-    text: str, voice_id: str = "default", pitch: float = 0, wait: bool = True
-) -> None:
+def speak(text: str, voice_id: str = "1", pitch: float = 0, wait: bool = True) -> None:
     """Synthesize ``text`` on the server and play it through the robot speaker.
 
     Blocks for the length of the clip when ``wait`` is True.
