@@ -602,7 +602,7 @@ def run(client: ServerClient) -> None:
                     # SOCIAL: If < 3 seconds, the robot has found its place -- it's happy
                     elif current_face != "happy":
                         websocket_cmd(f"(d,{ANIM['happy']})")  # found the marker
-                        speak("Locked and loaded!")
+                        # speak("Locked and loaded!")
                         current_face = "happy"
 
             if pose is None:
