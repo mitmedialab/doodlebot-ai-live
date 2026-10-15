@@ -371,9 +371,14 @@ def execute_commands(commands: list[DrawingCommand]) -> None:
     currentPen = 1
     for cmd in commands:
         if isinstance(cmd, ArcCommand):
-            if currentPen == 0:
-                send_command(f"u,45")
-                currentPen = 1
+            if cmd.radius == 0:
+                if currentPen == 1:
+                    send_command(f"u,0")
+                    currentPen = 0
+            else:
+                if currentPen == 0:
+                    send_command(f"u,45")
+                    currentPen = 1
             radiusInch = 0.0393701 * cmd.radius
             send_command(f"t,{radiusInch},{-1*cmd.degrees}")
 
@@ -575,7 +580,7 @@ def run(client: ServerClient) -> None:
                 if current_face != "confused":
                     websocket_cmd(f"(d,{ANIM['confused']})")  # dizzy while spinning
                     current_face = "confused"
-                execute_commands([SpinCommand(degrees=10)])
+                # execute_commands([SpinCommand(degrees=10)])
 
             # Poll for a job if we have a pose
             if pose is not None:
@@ -597,6 +602,7 @@ def run(client: ServerClient) -> None:
                     # SOCIAL: If < 3 seconds, the robot has found its place -- it's happy
                     elif current_face != "happy":
                         websocket_cmd(f"(d,{ANIM['happy']})")  # found the marker
+                        speak("Locked and loaded!")
                         current_face = "happy"
 
             if pose is None:
@@ -608,6 +614,7 @@ def run(client: ServerClient) -> None:
 
         # --- Draw -----------------------------------------------------------
         print(f"[{config.name}] drawing {job.jobId} ({len(job.commands)} commands)")
+        speak("Here we go!")
         print(job.navigateTo)
         navigate_to(job.navigateTo, pose)
         execute_commands(job.commands)
@@ -624,6 +631,7 @@ def run(client: ServerClient) -> None:
         # SOCIAL: celebrate finishing the drawing with a spin (pen up so it doesn't mark)
         websocket_cmd(f"(d,{ANIM['happy']})")
         send_command("u,0")
+        speak("All finished!")
         execute_commands([SpinCommand(degrees=360)])
 
 
