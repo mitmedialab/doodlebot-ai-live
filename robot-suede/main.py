@@ -371,7 +371,8 @@ CM_TO_STEPS = 7.16 * 16
 
 def execute_commands(commands: list[DrawingCommand]) -> None:
     """Issue line/spin/arc commands to the drive + pen, in order."""
-    currentPen = 1
+    send_command(f"u,0")
+    currentPen = 0
     for cmd in commands:
         if isinstance(cmd, ArcCommand):
             if cmd.radius == 0:
