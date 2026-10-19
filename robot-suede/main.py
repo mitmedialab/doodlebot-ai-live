@@ -30,6 +30,9 @@ import numpy as np
 HOST = "127.0.0.1"
 BLE_PORT = 5000
 
+# Set to True to enable social behaviors (facial expressions, speech, celebratory spins).
+SOCIAL = False
+
 robot = None
 marker_map = None
 
@@ -577,10 +580,11 @@ def run(client: ServerClient) -> None:
                 recent_poses.clear()
                 idle_since = None
                 # SOCIAL: the robot doesn't know where it is -- confused
-                if current_face != "confused":
+                if SOCIAL and current_face != "confused":
                     websocket_cmd(f"(d,{ANIM['confused']})")  # dizzy while spinning
                     current_face = "confused"
-                # execute_commands([SpinCommand(degrees=10)])
+                execute_commands([SpinCommand(degrees=10)])
+                continue
 
             # Poll for a job if we have a pose
             if pose is not None:
@@ -591,7 +595,7 @@ def run(client: ServerClient) -> None:
                     if current_face != "happy":
                         websocket_cmd(f"(d,{ANIM['happy']})")  # got work, wake up
                         current_face = "happy"
-                else:
+                elif SOCIAL:
                     # SOCIAL: If the robot has been idle for more than 3 seconds, switch to sleep
                     if idle_since is None:
                         idle_since = time.monotonic()
@@ -602,7 +606,7 @@ def run(client: ServerClient) -> None:
                     # SOCIAL: If < 3 seconds, the robot has found its place -- it's happy
                     elif current_face != "happy":
                         websocket_cmd(f"(d,{ANIM['happy']})")  # found the marker
-                        # speak("Locked and loaded!")
+                        speak("Locked and loaded!")
                         current_face = "happy"
 
             if pose is None:
@@ -614,7 +618,7 @@ def run(client: ServerClient) -> None:
 
         # --- Draw -----------------------------------------------------------
         print(f"[{config.name}] drawing {job.jobId} ({len(job.commands)} commands)")
-        speak("Here we go!")
+        speak("Here we go!", wait=False)
         print(job.navigateTo)
         navigate_to(job.navigateTo, pose)
         execute_commands(job.commands)
@@ -628,11 +632,12 @@ def run(client: ServerClient) -> None:
                 job.navigateFrom,
             )
 
-        # SOCIAL: celebrate finishing the drawing with a spin (pen up so it doesn't mark)
-        websocket_cmd(f"(d,{ANIM['happy']})")
         send_command("u,0")
-        speak("All finished!")
-        execute_commands([SpinCommand(degrees=360)])
+        if SOCIAL:
+            # SOCIAL: celebrate finishing the drawing with a spin
+            websocket_cmd(f"(d,{ANIM['happy']})")
+            speak("All finished!", wait=False)
+            execute_commands([SpinCommand(degrees=360)])
 
 
 if __name__ == "__main__":
