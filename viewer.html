@@ -1,0 +1,1051 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Drawing Viewer — Admin</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Mono:wght@300;400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        min-height: 100%;
+        background: #0e0e0c;
+        font-family: "DM Mono", monospace;
+        color: #f5f0e8;
+        font-size: 13px;
+      }
+      a {
+        color: #5a9e5a;
+      }
+
+      /* ── Header ── */
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        gap: 1.2rem;
+        padding: 0 1.2rem;
+        height: 48px;
+        background: #080808;
+        border-bottom: 1px solid #1e1e1e;
+      }
+      header h1 {
+        font-family: "Playfair Display", serif;
+        font-size: 1.2rem;
+        white-space: nowrap;
+      }
+      header h1 em {
+        font-style: italic;
+        color: #d4a843;
+      }
+      .nav {
+        display: flex;
+        gap: 0.8rem;
+        font-size: 0.62rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+      .nav a {
+        color: #a49d8e;
+        text-decoration: none;
+      }
+      .nav a:hover {
+        color: #f5f0e8;
+      }
+      .hdr-space {
+        flex: 1;
+      }
+      .token-row {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .token-row label {
+        font-size: 0.58rem;
+        color: #9a9284;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+      .token-row input {
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid #333;
+        color: #f5f0e8;
+        font-family: "DM Mono", monospace;
+        font-size: 0.7rem;
+        padding: 0.15rem 0.3rem;
+        width: 140px;
+      }
+      .live {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.58rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #b8b1a2;
+      }
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #444;
+      }
+      .dot.ok {
+        background: #2d7d46;
+        box-shadow: 0 0 6px #2d7d46;
+      }
+      .dot.err {
+        background: #b5483d;
+      }
+
+      /* ── Layout ── */
+      main {
+        max-width: 1500px;
+        margin: 0 auto;
+        padding: 1rem 1.2rem;
+      }
+
+      /* ── Toolbar ── */
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.8rem 1.2rem;
+        align-items: flex-end;
+        background: #121210;
+        border: 1px solid #1e1e1e;
+        padding: 0.8rem 1rem;
+        margin-bottom: 1rem;
+      }
+      .tb-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+      }
+      .tb-group > .tb-label {
+        font-size: 0.55rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #b0a99a;
+      }
+      .tb-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      .sep {
+        width: 1px;
+        align-self: stretch;
+        background: #24241f;
+      }
+
+      select {
+        background: #0c0c0a;
+        border: 1px solid #2a2a2a;
+        color: #f5f0e8;
+        font-family: "DM Mono", monospace;
+        font-size: 0.68rem;
+        padding: 0.3rem 0.4rem;
+        min-width: 130px;
+      }
+      select:focus {
+        outline: none;
+        border-color: #d4a843;
+      }
+
+      button {
+        font-family: "DM Mono", monospace;
+        font-size: 0.6rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1px solid #5a9e5a;
+        background: transparent;
+        color: #5a9e5a;
+        padding: 0.4rem 0.7rem;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      button:hover {
+        background: #5a9e5a;
+        color: #0e0e0c;
+      }
+      button.gold {
+        border-color: #d4a843;
+        color: #d4a843;
+      }
+      button.gold:hover {
+        background: #d4a843;
+        color: #0e0e0c;
+      }
+      button.ghost {
+        border-color: #5c584e;
+        color: #c4bdae;
+      }
+      button.ghost:hover {
+        background: #2a2a2a;
+        color: #f5f0e8;
+      }
+
+      /* ── Layer toggles ── */
+      .layers {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 0.9rem;
+      }
+      .layers label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.62rem;
+        color: #c4bdae;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .layers input {
+        width: auto;
+      }
+      .swatch {
+        width: 20px;
+        height: 0;
+        border-top-width: 3px;
+        border-top-style: solid;
+        display: inline-block;
+      }
+      .swatch.dot-sw {
+        width: 9px;
+        height: 9px;
+        border: 2px solid;
+        border-radius: 50%;
+        border-top-style: solid;
+      }
+
+      /* ── Stage ── */
+      .stage-wrap {
+        background: #121210;
+        border: 1px solid #1e1e1e;
+        padding: 0.8rem;
+        margin-bottom: 1rem;
+      }
+      .stage-cap {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        font-size: 0.62rem;
+        color: #c8c1b2;
+        margin-bottom: 0.5rem;
+      }
+      .stage-cap .muted {
+        color: #a49d8e;
+      }
+      svg.stage {
+        width: 100%;
+        height: auto;
+        max-height: 82vh;
+        background: #fdfdfb;
+        border: 1px solid #2a2a2a;
+        display: block;
+      }
+      .empty {
+        color: #a49d8e;
+        padding: 3rem 1rem;
+        text-align: center;
+        font-size: 0.8rem;
+      }
+
+      /* ── Inspector ── */
+      h2.sec {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: #d4a843;
+        margin: 0 0 0.7rem;
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 0.8rem;
+      }
+      .card {
+        background: #121210;
+        border: 1px solid #1e1e1e;
+        border-left-width: 4px;
+        padding: 0.7rem 0.8rem;
+        font-size: 0.62rem;
+      }
+      .card h3 {
+        font-size: 0.66rem;
+        color: #f5f0e8;
+        margin-bottom: 0.5rem;
+        word-break: break-all;
+      }
+      .card h3 .rn {
+        color: #a49d8e;
+        font-weight: 400;
+      }
+      .kv {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0.15rem 0.6rem;
+        line-height: 1.5;
+      }
+      .kv .k {
+        color: #9a9284;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 0.55rem;
+        align-self: center;
+      }
+      .kv .v {
+        color: #d8d2c6;
+      }
+      .cmdcount {
+        margin-top: 0.5rem;
+        color: #a49d8e;
+        font-size: 0.58rem;
+      }
+      .toast {
+        font-size: 0.62rem;
+        margin-left: 0.4rem;
+      }
+      .toast.ok {
+        color: #6cc488;
+      }
+      .toast.err {
+        color: #d98b80;
+      }
+      code {
+        color: #cbb26a;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Drawing <em>Viewer</em></h1>
+      <nav class="nav">
+        <a href="./robots">Orchestration</a>
+        <a href="./gallery">Gallery</a>
+        <a href="./display">Display</a>
+      </nav>
+      <span class="hdr-space"></span>
+      <span class="live"><span id="liveDot" class="dot"></span><span id="liveText">idle</span></span>
+      <div class="token-row">
+        <label>Token</label>
+        <input id="adminToken" placeholder="admin token…" autocomplete="off" />
+      </div>
+    </header>
+
+    <main>
+      <!-- ── Toolbar: source + filters + layers ─────────────────────────── -->
+      <div class="toolbar">
+        <div class="tb-group">
+          <span class="tb-label">Source</span>
+          <div class="tb-row">
+            <button class="gold" onclick="fetchLatest()">Fetch latest</button>
+            <button class="ghost" onclick="document.getElementById('uploadFile').click()">
+              Upload JSON
+            </button>
+            <input
+              type="file"
+              id="uploadFile"
+              accept="application/json,.json"
+              style="display: none"
+              onchange="onUpload(this)"
+            />
+            <span class="toast" id="srcToast"></span>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <div class="tb-group">
+          <span class="tb-label">Canvas</span>
+          <select id="selCanvas" onchange="onCanvasChange()"></select>
+        </div>
+        <div class="tb-group">
+          <span class="tb-label">Region</span>
+          <select id="selRegion" onchange="render()"></select>
+        </div>
+        <div class="tb-group">
+          <span class="tb-label">Robot</span>
+          <select id="selRobot" onchange="onRobotOrRegionChange()"></select>
+        </div>
+        <div class="tb-group">
+          <span class="tb-label">Job id</span>
+          <select id="selJob" onchange="render()"></select>
+        </div>
+        <div class="tb-group">
+          <span class="tb-label">&nbsp;</span>
+          <button class="ghost" onclick="resetFilters()">Reset view</button>
+        </div>
+      </div>
+
+      <!-- ── Layer legend / toggles ─────────────────────────────────────── -->
+      <div class="toolbar" style="padding-top: 0.6rem; padding-bottom: 0.6rem">
+        <div class="tb-group" style="flex: 1">
+          <span class="tb-label">Layers</span>
+          <div class="layers">
+            <label
+              ><input type="checkbox" id="lyInk" checked onchange="render()" /><span
+                class="swatch"
+                style="border-top-color: #111"
+              ></span
+              >ink (pen down)</label
+            >
+            <label
+              ><input type="checkbox" id="lyNav" checked onchange="render()" /><span
+                class="swatch"
+                style="border-top-color: #8a8f94; border-top-style: dashed"
+              ></span
+              >navigation (pen up)</label
+            >
+            <label
+              ><input type="checkbox" id="lyAnchor" checked onchange="render()" /><span
+                class="swatch dot-sw"
+                style="border-color: #1f9d55; background: #1f9d55"
+              ></span
+              >anchor + θ (angle_deg)</label
+            >
+            <label
+              ><input type="checkbox" id="lyExit" checked onchange="render()" /><span
+                class="swatch dot-sw"
+                style="border-color: #e8792b"
+              ></span
+              >exit pose</label
+            >
+            <label
+              ><input type="checkbox" id="lyMarkers" checked onchange="render()" /><span
+                class="swatch dot-sw"
+                style="border-color: #c79a2e; background: #d4a843"
+              ></span
+              >aruco markers</label
+            >
+            <label
+              ><input type="checkbox" id="lyRegions" checked onchange="render()" />regions</label
+            >
+            <label
+              ><input type="checkbox" id="lyLabels" checked onchange="render()" />job labels</label
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Stage ──────────────────────────────────────────────────────── -->
+      <div class="stage-wrap">
+        <div class="stage-cap" id="stageCap">
+          <span class="muted">No data — fetch or upload a canvases dump.</span>
+        </div>
+        <div id="stage">
+          <div class="empty" id="stageEmpty">
+            Fetch the latest from the server or upload a JSON dump of
+            <code>/api/robots/canvases</code> to begin.
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Inspector ──────────────────────────────────────────────────── -->
+      <h2 class="sec">Jobs shown <span id="jobsCount" style="color: #a49d8e"></span></h2>
+      <div class="cards" id="cards"></div>
+    </main>
+
+    <script>
+      // ── Host + token (mirrors robots.html) ─────────────────────────────────
+      const MODE = "PROD";
+      const host =
+        MODE === "DEV"
+          ? "http://localhost:5001"
+          : "https://doodlebot.media.mit.edu/live";
+
+      const TOKEN_KEY = "doodlebot_admin_token";
+      const tokenInput = /** @type {HTMLInputElement} */ (
+        document.getElementById("adminToken")
+      );
+      const urlToken = new URLSearchParams(window.location.search).get("token");
+      tokenInput.value = urlToken || localStorage.getItem(TOKEN_KEY) || "";
+      tokenInput.addEventListener("input", () => {
+        localStorage.setItem(TOKEN_KEY, tok());
+      });
+      const tok = () => tokenInput.value.trim();
+
+      /** @param {"ok"|"err"|"idle"} state @param {string} msg */
+      function setLive(state, msg) {
+        const dot = document.getElementById("liveDot");
+        dot.className =
+          "dot" + (state === "ok" ? " ok" : state === "err" ? " err" : "");
+        document.getElementById("liveText").textContent = msg;
+      }
+      function srcToast(msg, ok) {
+        const el = document.getElementById("srcToast");
+        el.className = "toast " + (ok ? "ok" : "err");
+        el.textContent = msg;
+      }
+
+      const ALL = "__all";
+
+      // ── App state ──────────────────────────────────────────────────────────
+      /** @type {any[]} */
+      let canvases = [];
+
+      // ── Data loading (fetch / upload) ───────────────────────────────────────
+      /** Accept both the server envelope ({canvases:[…]}) and a bare array. */
+      function ingest(obj) {
+        const list = Array.isArray(obj)
+          ? obj
+          : obj && Array.isArray(obj.canvases)
+            ? obj.canvases
+            : null;
+        if (!list) throw new Error("JSON has no 'canvases' array");
+        canvases = list;
+        populateCanvasSelect();
+        render();
+      }
+
+      async function fetchLatest() {
+        if (!tok()) {
+          setLive("err", "no token");
+          return srcToast("Enter an admin token first", false);
+        }
+        setLive("idle", "loading…");
+        try {
+          const res = await fetch(
+            `${host}/api/robots/canvases?token=${encodeURIComponent(tok())}`,
+          );
+          if (res.status === 401 || res.status === 403) {
+            setLive("err", "unauthorized");
+            return srcToast("Unauthorized — check token", false);
+          }
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          const data = await res.json();
+          ingest(data);
+          setLive("ok", "live");
+          srcToast(`Fetched ${canvases.length} canvas(es)`, true);
+        } catch (e) {
+          setLive("err", "offline");
+          srcToast("Fetch failed: " + e.message, false);
+        }
+      }
+
+      /** @param {HTMLInputElement} input */
+      function onUpload(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            ingest(JSON.parse(/** @type {string} */ (reader.result)));
+            setLive("ok", "file");
+            srcToast(`Loaded "${file.name}" — ${canvases.length} canvas(es)`, true);
+          } catch (e) {
+            srcToast("Import failed: " + e.message, false);
+          }
+        };
+        reader.onerror = () => srcToast("Could not read file", false);
+        reader.readAsText(file);
+        input.value = "";
+      }
+
+      // ── Selection helpers ────────────────────────────────────────────────────
+      const val = (id) => document.getElementById(id).value;
+      const activeCanvas = () => canvases.find((c) => c.id === val("selCanvas"));
+
+      function populateCanvasSelect() {
+        const sel = document.getElementById("selCanvas");
+        const cur = sel.value;
+        sel.innerHTML = canvases
+          .map((c) => `<option value="${esc(c.id)}">${esc(c.id)}</option>`)
+          .join("");
+        if (canvases.some((c) => c.id === cur)) sel.value = cur;
+        populateFilterSelects();
+      }
+
+      /** Region + robot options come from the selected canvas; jobs are contextual. */
+      function populateFilterSelects() {
+        const c = activeCanvas();
+        const regionSel = document.getElementById("selRegion");
+        const robotSel = document.getElementById("selRobot");
+        const rCur = regionSel.value,
+          botCur = robotSel.value;
+
+        const regions = (c && c.regions) || [];
+        regionSel.innerHTML =
+          `<option value="${ALL}">All regions</option>` +
+          regions
+            .map((r) => `<option value="${esc(r.id)}">${esc(r.id)}</option>`)
+            .join("");
+        if ([...regionSel.options].some((o) => o.value === rCur))
+          regionSel.value = rCur;
+
+        // Robots: union of region assignments and drawing authors.
+        const robots = new Set();
+        regions.forEach((r) => r.robot && robots.add(r.robot));
+        ((c && c.drawings) || []).forEach((d) => d.robot_name && robots.add(d.robot_name));
+        robotSel.innerHTML =
+          `<option value="${ALL}">All robots</option>` +
+          [...robots]
+            .sort()
+            .map((n) => `<option value="${esc(n)}">${esc(n)}</option>`)
+            .join("");
+        if ([...robotSel.options].some((o) => o.value === botCur))
+          robotSel.value = botCur;
+
+        populateJobSelect();
+      }
+
+      /** Jobs available given the current canvas + region + robot filters. */
+      function populateJobSelect() {
+        const jobSel = document.getElementById("selJob");
+        const cur = jobSel.value;
+        const c = activeCanvas();
+        // Job list respects region/robot but not the job filter itself.
+        const pool = filterDrawings(c, {
+          region: val("selRegion"),
+          robot: val("selRobot"),
+          job: ALL,
+        });
+        const jobs = [...new Set(pool.map((d) => d.job_id))].sort();
+        jobSel.innerHTML =
+          `<option value="${ALL}">All jobs (${jobs.length})</option>` +
+          jobs.map((j) => `<option value="${esc(j)}">${esc(j)}</option>`).join("");
+        jobSel.value = [...jobSel.options].some((o) => o.value === cur) ? cur : ALL;
+      }
+
+      function onCanvasChange() {
+        // A new canvas invalidates region/robot/job — reset them.
+        document.getElementById("selRegion").value = ALL;
+        document.getElementById("selRobot").value = ALL;
+        document.getElementById("selJob").value = ALL;
+        populateFilterSelects();
+        render();
+      }
+      function onRobotOrRegionChange() {
+        populateJobSelect();
+        render();
+      }
+      function resetFilters() {
+        document.getElementById("selRegion").value = ALL;
+        document.getElementById("selRobot").value = ALL;
+        document.getElementById("selJob").value = ALL;
+        populateJobSelect();
+        render();
+      }
+
+      // ── Filtering ────────────────────────────────────────────────────────────
+      /** Does drawing `d` belong to region `r`? By robot assignment, else anchor-in-rect. */
+      function inRegion(d, r) {
+        if (r.robot) return d.robot_name === r.robot;
+        return (
+          d.anchor_x >= r.x &&
+          d.anchor_x <= r.x + r.width &&
+          d.anchor_y >= r.y &&
+          d.anchor_y <= r.y + r.height
+        );
+      }
+      /** @param {any} c @param {{region:string,robot:string,job:string}} sel */
+      function filterDrawings(c, sel) {
+        let ds = ((c && c.drawings) || []).slice();
+        if (sel.region !== ALL) {
+          const r = (c.regions || []).find((x) => x.id === sel.region);
+          if (r) ds = ds.filter((d) => inRegion(d, r));
+        }
+        if (sel.robot !== ALL) ds = ds.filter((d) => d.robot_name === sel.robot);
+        if (sel.job !== ALL) ds = ds.filter((d) => d.job_id === sel.job);
+        return ds;
+      }
+
+      // ── Kinematics: replay commands to recover pen-up (navigation) segments ──
+      // Ports canvas.py `commands_to_strokes` (heading 0 = +x, arc_step 6°, arcs are
+      // ink) but ALSO captures the pen-up travel moves the server's `strokes` omit.
+      const ARC_STEP_DEG = 6.0;
+      const D2R = Math.PI / 180;
+
+      /** @returns {{ink:number[][][], nav:number[][][]}} local-frame polylines */
+      function replayLocal(commands) {
+        let x = 0,
+          y = 0,
+          heading = 0;
+        const ink = [];
+        const nav = [];
+        let cur = [];
+        const extend = (nx, ny) => {
+          if (!cur.length) cur = [[x, y]];
+          cur.push([nx, ny]);
+        };
+        const flush = () => {
+          if (cur.length >= 2) ink.push(cur);
+          cur = [];
+        };
+        for (const cmd of commands || []) {
+          if (cmd.kind === "line") {
+            const rad = heading * D2R;
+            const nx = x + cmd.distance * Math.cos(rad);
+            const ny = y + cmd.distance * Math.sin(rad);
+            if (cmd.penDown) extend(nx, ny);
+            else {
+              flush();
+              nav.push([
+                [x, y],
+                [nx, ny],
+              ]);
+            }
+            x = nx;
+            y = ny;
+          } else if (cmd.kind === "spin") {
+            heading += cmd.degrees;
+          } else if (cmd.kind === "arc") {
+            const steps = Math.max(1, Math.ceil(Math.abs(cmd.degrees) / ARC_STEP_DEG));
+            const dtheta = cmd.degrees / steps;
+            const segLen = cmd.radius * Math.abs(dtheta) * D2R;
+            for (let i = 0; i < steps; i++) {
+              const rad = heading * D2R;
+              const nx = x + segLen * Math.cos(rad);
+              const ny = y + segLen * Math.sin(rad);
+              extend(nx, ny);
+              x = nx;
+              y = ny;
+              heading += dtheta;
+            }
+          }
+        }
+        flush();
+        return { ink, nav };
+      }
+
+      /** Rotate a local point by `deg` about origin, then translate to (ax, ay). */
+      function toWorld(px, py, deg, ax, ay) {
+        const rad = deg * D2R;
+        const c = Math.cos(rad),
+          s = Math.sin(rad);
+        return [px * c - py * s + ax, px * s + py * c + ay];
+      }
+      const mapStroke = (stroke, deg, ax, ay) =>
+        stroke.map((p) => toWorld(p[0], p[1], deg, ax, ay));
+
+      /** World-frame geometry + metadata for one drawing. */
+      function drawingGeom(c, d) {
+        const nav = replayLocal(d.commands).nav.map((s) =>
+          mapStroke(s, d.angle_deg, d.anchor_x, d.anchor_y),
+        );
+        // The server ships pen-down `strokes` already in world mm; trust them.
+        // Fall back to replayed ink only if they're absent.
+        const ink =
+          d.strokes && d.strokes.length
+            ? d.strokes
+            : replayLocal(d.commands).ink.map((s) =>
+                mapStroke(s, d.angle_deg, d.anchor_x, d.anchor_y),
+              );
+        const exitReal = !(
+          d.exit_pose_x === 0 &&
+          d.exit_pose_y === 0 &&
+          d.exit_pose_deg === 0
+        );
+        return {
+          d,
+          ink,
+          nav,
+          color: colorForDrawing(c, d),
+          anchor: [d.anchor_x, d.anchor_y],
+          angle: d.angle_deg,
+          exit: exitReal
+            ? [d.exit_pose_x, d.exit_pose_y, d.exit_pose_deg]
+            : null,
+        };
+      }
+
+      function colorForDrawing(c, d) {
+        const r = (c.regions || []).find((x) => x.robot === d.robot_name);
+        return (r && r.color) || "#111";
+      }
+
+      // ── Bounding boxes + view-fitting ────────────────────────────────────────
+      function bboxOfGeoms(geoms) {
+        let minX = Infinity,
+          minY = Infinity,
+          maxX = -Infinity,
+          maxY = -Infinity;
+        const add = (x, y) => {
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+        };
+        geoms.forEach((g) => {
+          g.ink.forEach((s) => s.forEach((p) => add(p[0], p[1])));
+          g.nav.forEach((s) => s.forEach((p) => add(p[0], p[1])));
+          add(g.anchor[0], g.anchor[1]);
+          if (g.exit) add(g.exit[0], g.exit[1]);
+        });
+        if (minX === Infinity) return null;
+        return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+      }
+      const padBox = (b, frac, min) => {
+        const m = Math.max(b.w, b.h) * frac + (min || 0);
+        return { x: b.x - m, y: b.y - m, w: b.w + 2 * m, h: b.h + 2 * m };
+      };
+      const regionBox = (r) => ({ x: r.x, y: r.y, w: r.width, h: r.height });
+
+      /**
+       * Choose the tightest viewBox for the current query, so the requested slice
+       * fills the stage: a picked job → its drawings' extent; a region → its rect;
+       * a robot → its region (or its drawings); otherwise the whole canvas.
+       */
+      function computeViewBox(c, geoms, sel) {
+        if (sel.job !== ALL) {
+          const b = bboxOfGeoms(geoms);
+          if (b) return padBox(b, 0.08, 15);
+        }
+        if (sel.region !== ALL) {
+          const r = (c.regions || []).find((x) => x.id === sel.region);
+          if (r) return padBox(regionBox(r), 0.03, 10);
+        }
+        if (sel.robot !== ALL) {
+          const r = (c.regions || []).find((x) => x.robot === sel.robot);
+          if (r) return padBox(regionBox(r), 0.03, 10);
+          const b = bboxOfGeoms(geoms);
+          if (b) return padBox(b, 0.08, 15);
+        }
+        return { x: 0, y: 0, w: c.width, h: c.height };
+      }
+
+      // ── SVG drawing helpers ──────────────────────────────────────────────────
+      /** A heading arrow (line + head) from (x,y) along `deg`, length `len`. */
+      function arrow(x, y, deg, len, color, sw) {
+        const rad = deg * D2R;
+        const dx = Math.cos(rad),
+          dy = Math.sin(rad);
+        const tx = x + dx * len,
+          ty = y + dy * len;
+        const hw = len * 0.32,
+          hb = len * 0.34;
+        const px = -dy,
+          py = dx; // perpendicular
+        const bx = tx - dx * hb,
+          by = ty - dy * hb;
+        return (
+          `<line x1="${x}" y1="${y}" x2="${tx}" y2="${ty}" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>` +
+          `<polygon points="${tx},${ty} ${bx + px * hw},${by + py * hw} ${bx - px * hw},${by - py * hw}" fill="${color}"/>`
+        );
+      }
+      /** Text with a white halo so it stays legible over ink. */
+      function haloText(x, y, size, fill, str) {
+        const common = `x="${x}" y="${y}" font-size="${size}" font-family="monospace"`;
+        return (
+          `<text ${common} fill="#fff" stroke="#fff" stroke-width="${size * 0.28}" stroke-linejoin="round">${escSvg(str)}</text>` +
+          `<text ${common} fill="${fill}">${escSvg(str)}</text>`
+        );
+      }
+
+      // ── Render ───────────────────────────────────────────────────────────────
+      function render() {
+        const stage = document.getElementById("stage");
+        const cap = document.getElementById("stageCap");
+        const cards = document.getElementById("cards");
+        const c = activeCanvas();
+        if (!c) {
+          stage.innerHTML =
+            '<div class="empty">No canvas selected — fetch or upload a dump.</div>';
+          cap.innerHTML = '<span class="muted">No data.</span>';
+          cards.innerHTML = "";
+          document.getElementById("jobsCount").textContent = "";
+          return;
+        }
+
+        const sel = {
+          region: val("selRegion"),
+          robot: val("selRobot"),
+          job: val("selJob"),
+        };
+        const drawings = filterDrawings(c, sel);
+        const geoms = drawings.map((d) => drawingGeom(c, d));
+
+        const show = {
+          ink: document.getElementById("lyInk").checked,
+          nav: document.getElementById("lyNav").checked,
+          anchor: document.getElementById("lyAnchor").checked,
+          exit: document.getElementById("lyExit").checked,
+          markers: document.getElementById("lyMarkers").checked,
+          regions: document.getElementById("lyRegions").checked,
+          labels: document.getElementById("lyLabels").checked,
+        };
+
+        const vb = computeViewBox(c, geoms, sel);
+        const scaleRef = Math.max(vb.w, vb.h);
+        const sw = scaleRef / 480; // base stroke width, in mm, scales with zoom
+        const fs = scaleRef / 46; // base font size
+        const dot = sw * 3.2;
+
+        const parts = [
+          `<svg class="stage" viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}" preserveAspectRatio="xMidYMid meet">`,
+          // canvas outline
+          `<rect x="0" y="0" width="${c.width}" height="${c.height}" fill="#fdfdfb" stroke="#cbcbc4" stroke-width="${sw}"/>`,
+        ];
+
+        // regions
+        if (show.regions) {
+          (c.regions || []).forEach((r) => {
+            const selected = sel.region !== ALL && r.id === sel.region;
+            const col = r.color || "#2d7d46";
+            parts.push(
+              `<rect x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" ` +
+                `fill="${col}" fill-opacity="${selected ? 0.07 : 0.03}" stroke="${col}" ` +
+                `stroke-opacity="0.5" stroke-width="${sw * (selected ? 1.6 : 0.8)}" ${selected ? "" : 'stroke-dasharray="' + sw * 3 + " " + sw * 3 + '"'}/>`,
+            );
+            parts.push(
+              haloText(
+                r.x + fs * 0.3,
+                r.y + fs * 1.1,
+                fs * 0.8,
+                "#555",
+                r.id + (r.robot ? " · " + r.robot : ""),
+              ),
+            );
+          });
+        }
+
+        // markers
+        if (show.markers) {
+          (c.markers || []).forEach((m) => {
+            const mx = m.position.x,
+              my = m.position.y;
+            parts.push(
+              `<circle cx="${mx}" cy="${my}" r="${dot * 1.1}" fill="#d4a843" stroke="#111" stroke-width="${sw * 0.7}"/>`,
+            );
+            parts.push(
+              haloText(mx + dot * 1.5, my + fs * 0.3, fs * 0.75, "#7a5c12", String(m.id)),
+            );
+          });
+        }
+
+        // drawings: nav first (under), then ink, then indicators
+        if (show.nav) {
+          geoms.forEach((g) => {
+            g.nav.forEach((s) => {
+              if (s.length < 2) return;
+              parts.push(
+                `<polyline points="${ptsStr(s)}" fill="none" stroke="#8a8f94" stroke-width="${sw * 0.9}" stroke-dasharray="${sw * 2.5} ${sw * 2}" stroke-linecap="round"/>`,
+              );
+            });
+          });
+        }
+        if (show.ink) {
+          geoms.forEach((g) => {
+            g.ink.forEach((s) => {
+              if (s.length < 2) return;
+              parts.push(
+                `<polyline points="${ptsStr(s)}" fill="none" stroke="${g.color}" stroke-width="${sw * 1.7}" stroke-linecap="round" stroke-linejoin="round"/>`,
+              );
+            });
+          });
+        }
+        // indicators + labels on top
+        geoms.forEach((g) => {
+          if (show.exit && g.exit) {
+            const [ex, ey, edeg] = g.exit;
+            parts.push(arrow(ex, ey, edeg, fs * 1.5, "#e8792b", sw * 1.3));
+            parts.push(
+              `<circle cx="${ex}" cy="${ey}" r="${dot}" fill="#fff" stroke="#e8792b" stroke-width="${sw * 1.3}"/>`,
+            );
+            if (show.labels)
+              parts.push(
+                haloText(ex + dot * 1.6, ey - dot, fs * 0.72, "#b5601b", "exit"),
+              );
+          }
+          if (show.anchor) {
+            const [ax, ay] = g.anchor;
+            parts.push(arrow(ax, ay, g.angle, fs * 1.7, "#1f9d55", sw * 1.3));
+            parts.push(
+              `<circle cx="${ax}" cy="${ay}" r="${dot}" fill="#1f9d55" stroke="#0c3b1f" stroke-width="${sw * 0.7}"/>`,
+            );
+          }
+          if (show.labels) {
+            const [ax, ay] = g.anchor;
+            parts.push(
+              haloText(
+                ax + dot * 1.7,
+                ay + fs * 1.1,
+                fs * 0.78,
+                "#111",
+                g.d.job_id,
+              ),
+            );
+          }
+        });
+
+        parts.push("</svg>");
+        stage.innerHTML = parts.join("");
+
+        // caption + inspector
+        const regTxt = sel.region === ALL ? "all regions" : "region " + sel.region;
+        const botTxt = sel.robot === ALL ? "all robots" : sel.robot;
+        const jobTxt = sel.job === ALL ? "all jobs" : sel.job;
+        cap.innerHTML =
+          `<span><strong>${esc(c.id)}</strong> · ${c.width} × ${c.height} mm · ${(c.regions || []).length} regions</span>` +
+          `<span class="muted">${esc(regTxt)} · ${esc(botTxt)} · ${esc(jobTxt)} — ${geoms.length} drawing(s) · view ${Math.round(vb.w)}×${Math.round(vb.h)} mm</span>`;
+
+        renderCards(geoms);
+      }
+
+      function renderCards(geoms) {
+        document.getElementById("jobsCount").textContent = geoms.length
+          ? `(${geoms.length})`
+          : "";
+        const cards = document.getElementById("cards");
+        if (!geoms.length) {
+          cards.innerHTML =
+            '<div class="empty" style="grid-column:1/-1">No drawings match this selection.</div>';
+          return;
+        }
+        cards.innerHTML = geoms
+          .map((g) => {
+            const d = g.d;
+            const counts = { line: 0, spin: 0, arc: 0, penUp: 0 };
+            (d.commands || []).forEach((cmd) => {
+              counts[cmd.kind] = (counts[cmd.kind] || 0) + 1;
+              if (cmd.kind === "line" && !cmd.penDown) counts.penUp++;
+            });
+            const exit = g.exit
+              ? `${g.exit[0].toFixed(1)}, ${g.exit[1].toFixed(1)} · ${g.exit[2].toFixed(1)}°`
+              : "—";
+            return `<div class="card" style="border-left-color:${g.color}">
+              <h3>${esc(d.job_id)} <span class="rn">· ${esc(d.robot_name || "—")}</span></h3>
+              <div class="kv">
+                <span class="k">anchor</span><span class="v">${d.anchor_x.toFixed(1)}, ${d.anchor_y.toFixed(1)} mm</span>
+                <span class="k">angle_deg</span><span class="v">${d.angle_deg.toFixed(2)}° (≡ ${mod360(d.angle_deg).toFixed(1)}°)</span>
+                <span class="k">exit pose</span><span class="v">${exit}</span>
+                <span class="k">ink strokes</span><span class="v">${g.ink.length}</span>
+                <span class="k">nav moves</span><span class="v">${g.nav.length}</span>
+              </div>
+              <div class="cmdcount">${d.commands ? d.commands.length : 0} commands — ${counts.line} line (${counts.penUp} pen-up), ${counts.arc} arc, ${counts.spin} spin</div>
+            </div>`;
+          })
+          .join("");
+      }
+
+      // ── Small helpers ────────────────────────────────────────────────────────
+      const ptsStr = (s) => s.map((p) => `${p[0]},${p[1]}`).join(" ");
+      const mod360 = (a) => ((a % 360) + 360) % 360;
+      function esc(s) {
+        return String(s).replace(
+          /[&<>"]/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+        );
+      }
+      const escSvg = esc;
+
+      // ── Boot ─────────────────────────────────────────────────────────────────
+      if (tok()) fetchLatest();
+    </script>
+  </body>
+</html>
